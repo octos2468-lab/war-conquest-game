@@ -1261,6 +1261,8 @@ function drawOverlayText() {
 }
 
 function draw(now) {
+  ensureUnitSprites();
+
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#111827';
