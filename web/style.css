@@ -16,15 +16,17 @@ body {
 .app {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: auto 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   padding: 16px;
 }
 
 .game-wrap {
   display: flex;
-  justify-content: center;
-  align-items: start;
+  justify-content: stretch;
+  align-items: stretch;
+  min-width: 0;
+  height: calc(100vh - 32px);
 }
 
 #gameCanvas {
@@ -32,6 +34,8 @@ body {
   border: 2px solid #374151;
   image-rendering: pixelated;
   cursor: crosshair;
+  width: 100%;
+  height: 100%;
 }
 
 .panel {
@@ -126,6 +130,12 @@ button:hover {
   .game-wrap {
     justify-content: start;
     overflow-x: auto;
+    height: auto;
+  }
+
+  #gameCanvas {
+    width: 600px;
+    height: 600px;
   }
 }
 

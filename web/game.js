@@ -1019,6 +1019,22 @@ function draw(now) {
   drawOverlayText();
 }
 
+function getBoardCoordinatesFromEvent(event) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = BOARD_PX / rect.width;
+  const scaleY = BOARD_PX / rect.height;
+
+  const boardX = (event.clientX - rect.left) * scaleX;
+  const boardY = (event.clientY - rect.top) * scaleY;
+
+  return {
+    boardX,
+    boardY,
+    gridX: Math.floor(boardX / TILE_SIZE),
+    gridY: Math.floor(boardY / TILE_SIZE),
+  };
+}
+
 function loop(now) {
   const dt = Math.min(0.05, (now - previousTime) / 1000);
   previousTime = now;
@@ -1029,10 +1045,8 @@ function loop(now) {
 }
 
 canvas.addEventListener('mousemove', (event) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((event.clientX - rect.left) / TILE_SIZE);
-  const y = Math.floor((event.clientY - rect.top) / TILE_SIZE);
-  hoverGrid = { x, y };
+  const pos = getBoardCoordinatesFromEvent(event);
+  hoverGrid = { x: pos.gridX, y: pos.gridY };
 });
 
 canvas.addEventListener('mouseleave', () => {
@@ -1042,9 +1056,9 @@ canvas.addEventListener('mouseleave', () => {
 canvas.addEventListener('click', (event) => {
   if (state.phase === 'gameover' || state.phase === 'victory') return;
 
-  const rect = canvas.getBoundingClientRect();
-  const gridX = Math.floor((event.clientX - rect.left) / TILE_SIZE);
-  const gridY = Math.floor((event.clientY - rect.top) / TILE_SIZE);
+  const pos = getBoardCoordinatesFromEvent(event);
+  const gridX = pos.gridX;
+  const gridY = pos.gridY;
 
   const existing = getPostAt(gridX, gridY);
   if (existing) {
@@ -1061,9 +1075,9 @@ canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault();
   if (state.phase === 'gameover' || state.phase === 'victory') return;
 
-  const rect = canvas.getBoundingClientRect();
-  const gridX = Math.floor((event.clientX - rect.left) / TILE_SIZE);
-  const gridY = Math.floor((event.clientY - rect.top) / TILE_SIZE);
+  const pos = getBoardCoordinatesFromEvent(event);
+  const gridX = pos.gridX;
+  const gridY = pos.gridY;
   sellPost(gridX, gridY);
 });
 
