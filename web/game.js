@@ -108,16 +108,29 @@ function createGrassPattern() {
   tex.height = 64;
   const tctx = tex.getContext('2d');
 
-  tctx.fillStyle = '#3f7f3a';
+  const baseGrad = tctx.createLinearGradient(0, 0, 64, 64);
+  baseGrad.addColorStop(0, '#3b7a36');
+  baseGrad.addColorStop(0.55, '#2f692b');
+  baseGrad.addColorStop(1, '#265922');
+  tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, 64, 64);
 
-  for (let i = 0; i < 220; i++) {
+  for (let i = 0; i < 260; i++) {
     const x = (i * 17) % 64;
     const y = (i * 29) % 64;
-    const shade = i % 3;
-    tctx.fillStyle = shade === 0 ? '#4f9446' : shade === 1 ? '#356f31' : '#5aa050';
-    tctx.fillRect(x, y, 2, 2);
+    const shade = i % 4;
+    tctx.fillStyle = shade === 0 ? '#4f9446' : shade === 1 ? '#356f31' : shade === 2 ? '#5aa050' : '#2d5d29';
+    tctx.fillRect(x, y, 1 + (i % 2), 1 + ((i + 1) % 2));
   }
+
+  tctx.globalAlpha = 0.18;
+  tctx.fillStyle = '#112915';
+  for (let i = 0; i < 70; i++) {
+    const x = (i * 31 + 9) % 64;
+    const y = (i * 23 + 17) % 64;
+    tctx.fillRect(x, y, 6, 1);
+  }
+  tctx.globalAlpha = 1;
 
   return ctx.createPattern(tex, 'repeat');
 }
@@ -128,17 +141,34 @@ function createGravelPattern() {
   tex.height = 64;
   const tctx = tex.getContext('2d');
 
-  tctx.fillStyle = '#8a8a7a';
+  const baseGrad = tctx.createLinearGradient(0, 0, 64, 64);
+  baseGrad.addColorStop(0, '#8f8b7d');
+  baseGrad.addColorStop(0.5, '#777366');
+  baseGrad.addColorStop(1, '#666055');
+  tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, 64, 64);
 
-  for (let i = 0; i < 180; i++) {
+  for (let i = 0; i < 230; i++) {
     const x = (i * 13 + (i % 7) * 3) % 64;
     const y = (i * 19 + (i % 5) * 5) % 64;
     const size = (i % 3) + 1;
-    const shade = i % 4;
-    tctx.fillStyle = shade < 2 ? '#9b9b8a' : '#6f6f64';
+    const shade = i % 5;
+    tctx.fillStyle = shade < 2 ? '#a8a393' : shade < 4 ? '#726d61' : '#59554b';
     tctx.fillRect(x, y, size, size);
   }
+
+  tctx.globalAlpha = 0.22;
+  tctx.strokeStyle = '#514d43';
+  tctx.lineWidth = 1;
+  for (let i = 0; i < 34; i++) {
+    const x = (i * 21) % 64;
+    const y = (i * 37) % 64;
+    tctx.beginPath();
+    tctx.moveTo(x, y);
+    tctx.lineTo(x + 4, y + ((i % 3) - 1));
+    tctx.stroke();
+  }
+  tctx.globalAlpha = 1;
 
   return ctx.createPattern(tex, 'repeat');
 }
@@ -164,7 +194,10 @@ function createPostSprites() {
     g.fillStyle = '#3a2a1a';
     g.fillRect(14, 42, 36, 14);
 
-    g.fillStyle = '#5c4631';
+    const timberGrad = g.createLinearGradient(12, 24, 52, 44);
+    timberGrad.addColorStop(0, '#6a5138');
+    timberGrad.addColorStop(1, '#3f2f21');
+    g.fillStyle = timberGrad;
     g.fillRect(12, 24, 40, 20);
     g.strokeStyle = '#1a120b';
     g.lineWidth = 2;
@@ -174,6 +207,15 @@ function createPostSprites() {
     for (let i = 0; i < 4; i++) {
       g.fillRect(14 + i * 10, 26, 6, 16);
     }
+
+    g.globalAlpha = 0.26;
+    g.fillStyle = '#d2bc90';
+    for (let i = 0; i < 22; i++) {
+      const x = (i * 9 + 3) % 34;
+      const y = (i * 7 + 5) % 16;
+      g.fillRect(14 + x, 26 + y, 1, 1);
+    }
+    g.globalAlpha = 1;
 
     g.fillStyle = '#4a3625';
     g.fillRect(17, 16, 6, 8);
@@ -206,6 +248,11 @@ function createPostSprites() {
     g.moveTo(8, 38);
     g.lineTo(56, 38);
     g.stroke();
+
+    g.globalAlpha = 0.22;
+    g.fillStyle = '#000000';
+    g.fillRect(12, 24, 40, 2);
+    g.globalAlpha = 1;
   });
 
   const soldier = createPostSprite((g) => {
@@ -214,7 +261,10 @@ function createPostSprites() {
     g.fillStyle = '#2f3138';
     g.fillRect(10, 40, 44, 16);
 
-    g.fillStyle = '#4d525c';
+    const stoneGrad = g.createLinearGradient(10, 18, 54, 42);
+    stoneGrad.addColorStop(0, '#636a76');
+    stoneGrad.addColorStop(1, '#3e434d');
+    g.fillStyle = stoneGrad;
     g.fillRect(10, 18, 44, 24);
     g.strokeStyle = '#1a1d24';
     g.lineWidth = 2;
@@ -224,6 +274,15 @@ function createPostSprites() {
     for (let i = 0; i < 5; i++) {
       g.fillRect(12 + i * 8, 20, 6, 20);
     }
+
+    g.globalAlpha = 0.22;
+    g.fillStyle = '#98a2b1';
+    for (let i = 0; i < 26; i++) {
+      const x = (i * 11 + 2) % 42;
+      const y = (i * 5 + 3) % 20;
+      g.fillRect(11 + x, 20 + y, 1, 1);
+    }
+    g.globalAlpha = 1;
 
     g.fillStyle = '#2a2d35';
     g.fillRect(25, 28, 14, 14);
@@ -518,6 +577,19 @@ function ensureUnitSprites() {
 
 const UNIT_RENDER_SCALE = 3;
 const UNIT_BASE_RENDER_MULT = 2.35;
+const UNIT_HITBOX_MATCH = 0.72;
+
+function getUnitRenderSize(radius) {
+  return radius * UNIT_BASE_RENDER_MULT * UNIT_RENDER_SCALE;
+}
+
+function getUnitVisualRadius(radius) {
+  return getUnitRenderSize(radius) / 2;
+}
+
+function getEntityHitRadius(entity) {
+  return getUnitVisualRadius(entity.radius || 0) * UNIT_HITBOX_MATCH;
+}
 
 function drawFacingSprite(sprite, x, y, radius, facingX, facingY) {
   ensureUnitSprites();
@@ -525,13 +597,13 @@ function drawFacingSprite(sprite, x, y, radius, facingX, facingY) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + Math.PI / 2);
-  const size = radius * UNIT_BASE_RENDER_MULT * UNIT_RENDER_SCALE;
+  const size = getUnitRenderSize(radius);
   ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 
 function drawUnitHealthBar(x, y, radius, health, maxHealth) {
-  const renderRadius = (radius * UNIT_BASE_RENDER_MULT * UNIT_RENDER_SCALE) / 2;
+  const renderRadius = getUnitVisualRadius(radius);
   const barW = Math.max(22, renderRadius * 1.05);
   const bx = x - barW / 2;
   const by = y - renderRadius - 10;
@@ -546,7 +618,7 @@ function resolveOverlapPair(a, b) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy);
-  const minDist = (a.radius || 0) + (b.radius || 0) + 0.5;
+  const minDist = getEntityHitRadius(a) + getEntityHitRadius(b) + 0.5;
   if (dist <= 0 || dist >= minDist) return;
 
   const push = (minDist - dist) / 2;
@@ -569,7 +641,7 @@ function resolveUnitOverlaps() {
     if (enemy.alive && !enemy.reachedEnd && enemy.spawnDelay <= 0) entities.push(enemy);
   }
 
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < entities.length; i++) {
       for (let j = i + 1; j < entities.length; j++) {
         resolveOverlapPair(entities[i], entities[j]);
@@ -933,7 +1005,11 @@ function heroMove(dt) {
   const { target, distance } = chooseClosestEnemyTo(hero.x, hero.y);
   const step = hero.moveSpeed * dt * 60;
 
-  if (target && distance > hero.attackRange * 0.85) {
+  const chaseRange = target
+    ? hero.attackRange + getEntityHitRadius(target) * 0.5 + getEntityHitRadius(hero) * 0.2
+    : hero.attackRange;
+
+  if (target && distance > chaseRange * 0.85) {
     const dx = target.x - hero.x;
     const dy = target.y - hero.y;
     if (distance > 0) {
@@ -960,7 +1036,10 @@ function heroBasicAttack() {
   if (!hero.alive || hero.attackTimer > 0) return;
 
   const { target, distance } = chooseClosestEnemyTo(hero.x, hero.y);
-  if (!target || distance > hero.attackRange) return;
+  const strikeRange = target
+    ? hero.attackRange + getEntityHitRadius(target) * 0.45 + getEntityHitRadius(hero) * 0.2
+    : hero.attackRange;
+  if (!target || distance > strikeRange) return;
 
   if (distance > 0) {
     hero.facingX = (target.x - hero.x) / distance;
@@ -983,7 +1062,7 @@ function heroSlash() {
 
   const targets = state.enemies.filter((enemy) => {
     if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) return false;
-    return Math.hypot(enemy.x - hero.x, enemy.y - hero.y) <= hero.slashRange;
+    return Math.hypot(enemy.x - hero.x, enemy.y - hero.y) <= hero.slashRange + getEntityHitRadius(enemy) * 0.35;
   });
 
   if (targets.length < 2) return;
@@ -1057,8 +1136,10 @@ function updateEnemies(dt) {
       }
     }
 
-    const engageRadius = 26;
-    const attackRange = enemy.radius + 10;
+    const enemyHit = getEntityHitRadius(enemy);
+    const closestHit = closestFriendly ? getEntityHitRadius(closestFriendly) : 0;
+    const engageRadius = enemyHit + closestHit + 8;
+    const attackRange = enemyHit * 0.45 + closestHit * 0.55 + 4;
 
     if (closestFriendly && closestFriendlyDist <= engageRadius) {
       const dx = closestFriendly.x - enemy.x;
@@ -1244,7 +1325,8 @@ function updateSoldierBarracks(dt, now) {
         unit.facingY = dy / distance;
       }
 
-      if (distance > unit.attackRange && distance > 0) {
+      const strikeRange = unit.attackRange + getEntityHitRadius(unit) * 0.35 + getEntityHitRadius(target) * 0.45;
+      if (distance > strikeRange && distance > 0) {
         unit.x += unit.facingX * step;
         unit.y += unit.facingY * step;
       } else if (unit.attackTimer <= 0) {
@@ -1289,7 +1371,7 @@ function updateProjectiles(dt) {
     for (const enemy of state.enemies) {
       if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
       const dist = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
-      if (dist < enemy.radius + 2) {
+      if (dist < getEntityHitRadius(enemy) * 0.7 + 2) {
         enemy.health -= projectile.damage;
         projectile.active = false;
         if (enemy.health <= 0 && enemy.alive) {
@@ -1353,50 +1435,29 @@ function drawGrid() {
   ctx.fillStyle = grassPattern || '#3f7f3a';
   ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
 
-  ctx.strokeStyle = '#5d4938';
-  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE + 6;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  for (let i = 0; i < path.length; i++) {
-    const [px, py] = path[i];
-    const cx = px * TILE_SIZE + TILE_SIZE / 2;
-    const cy = py * TILE_SIZE + TILE_SIZE / 2;
-    if (i === 0) ctx.moveTo(cx, cy);
-    else ctx.lineTo(cx, cy);
-  }
-  ctx.stroke();
+  ctx.fillStyle = gravelPattern || '#8a8a7a';
+  for (const [px, py] of pathCells) {
+    const tx = px * TILE_SIZE;
+    const ty = py * TILE_SIZE;
+    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
 
-  ctx.strokeStyle = gravelPattern || '#8a8a7a';
-  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE;
-  ctx.beginPath();
-  for (let i = 0; i < path.length; i++) {
-    const [px, py] = path[i];
-    const cx = px * TILE_SIZE + TILE_SIZE / 2;
-    const cy = py * TILE_SIZE + TILE_SIZE / 2;
-    if (i === 0) ctx.moveTo(cx, cy);
-    else ctx.lineTo(cx, cy);
-  }
-  ctx.stroke();
+    const noiseA = Math.sin(px * 12.9898 + py * 78.233) * 43758.5453;
+    const noiseB = Math.sin(px * 23.173 + py * 31.947) * 96321.517;
+    const rA = noiseA - Math.floor(noiseA);
+    const rB = noiseB - Math.floor(noiseB);
 
-  ctx.strokeStyle = '#6a6a5e';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let i = 0; i < path.length; i++) {
-    const [px, py] = path[i];
-    const cx = px * TILE_SIZE + TILE_SIZE / 2;
-    const cy = py * TILE_SIZE + TILE_SIZE / 2;
-    if (i === 0) ctx.moveTo(cx, cy);
-    else ctx.lineTo(cx, cy);
-  }
-  ctx.stroke();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = rA > 0.5 ? '#4f4c45' : '#b4ad97';
+    ctx.fillRect(tx + 4 + rA * 10, ty + 5 + rB * 10, 5 + rA * 3, 2 + rB * 2);
+    ctx.globalAlpha = 1;
 
-  ctx.lineWidth = 1;
-
-  for (let x = 0; x < GRID_WIDTH; x++) {
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-      ctx.strokeStyle = 'rgba(17, 24, 39, 0.18)';
-      ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    if (rB > 0.66) {
+      ctx.strokeStyle = 'rgba(60, 56, 49, 0.28)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(tx + 3, ty + TILE_SIZE * 0.55);
+      ctx.lineTo(tx + TILE_SIZE - 3, ty + TILE_SIZE * 0.48);
+      ctx.stroke();
     }
   }
 }
