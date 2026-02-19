@@ -20,7 +20,7 @@ const TILE_SIZE = 30;
 const GRID_WIDTH = 28;
 const GRID_HEIGHT = 28;
 const BOARD_PX = GRID_WIDTH * TILE_SIZE;
-const PATH_HALF_WIDTH_TILES = 1;
+const PATH_HALF_WIDTH_TILES = 2;
 const STARTING_GOLD = 220;
 const STARTING_LIVES = 20;
 const MAX_WAVES = 10;
@@ -858,16 +858,26 @@ function drawGrid() {
   ctx.fillStyle = '#f3f4f6';
   ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
 
+  ctx.strokeStyle = '#4b5563';
+  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < path.length; i++) {
+    const [px, py] = path[i];
+    const cx = px * TILE_SIZE + TILE_SIZE / 2;
+    const cy = py * TILE_SIZE + TILE_SIZE / 2;
+    if (i === 0) ctx.moveTo(cx, cy);
+    else ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
   for (let x = 0; x < GRID_WIDTH; x++) {
     for (let y = 0; y < GRID_HEIGHT; y++) {
       ctx.strokeStyle = '#d1d5db';
       ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
-  }
-
-  ctx.fillStyle = '#4b5563';
-  for (const [x, y] of pathCells) {
-    ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
 }
 
