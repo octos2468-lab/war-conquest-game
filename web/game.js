@@ -72,11 +72,16 @@ let gravelPattern = null;
 let unitSprites = null;
 let postSprites = null;
 
-const TEXTURE_RES_2K = 2048;
+const TEXTURE_RES_2K = 4096;
 const UNIT_SPRITE_BASE_SIZE = 48;
 const UNIT_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
 const POST_SPRITE_BASE_SIZE = 64;
 const POST_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
+
+function setHighQualitySmoothing(targetCtx) {
+  targetCtx.imageSmoothingEnabled = true;
+  targetCtx.imageSmoothingQuality = 'high';
+}
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -89,6 +94,8 @@ function resizeCanvasDisplayToViewport() {
   canvas.height = height;
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
+  canvas.style.imageRendering = 'auto';
+  setHighQualitySmoothing(ctx);
 
   const uniformScale = Math.min(width / BOARD_PX, height / BOARD_PX);
   renderScaleX = uniformScale;
@@ -113,34 +120,50 @@ function createGrassPattern() {
   tex.width = TEXTURE_RES_2K;
   tex.height = TEXTURE_RES_2K;
   const tctx = tex.getContext('2d');
+  setHighQualitySmoothing(tctx);
   const s = TEXTURE_RES_2K;
 
-  const baseGrad = tctx.createLinearGradient(0, 0, s, s);
-  baseGrad.addColorStop(0, '#2a5e27');
-  baseGrad.addColorStop(0.5, '#204b1e');
-  baseGrad.addColorStop(1, '#173916');
+  const baseGrad = tctx.createRadialGradient(s * 0.42, s * 0.35, s * 0.12, s * 0.5, s * 0.5, s * 0.95);
+  baseGrad.addColorStop(0, '#3f7f3a');
+  baseGrad.addColorStop(0.45, '#2f682c');
+  baseGrad.addColorStop(1, '#1b3f1a');
   tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 13000; i++) {
-    const x = (i * 17 + (i % 53) * 11) % s;
-    const y = (i * 29 + (i % 41) * 13) % s;
-    const shade = i % 4;
-    tctx.fillStyle = shade === 0 ? '#356c31' : shade === 1 ? '#2a5926' : shade === 2 ? '#3f7a3a' : '#234820';
-    tctx.fillRect(x, y, 2 + (i % 3), 2 + ((i + 1) % 3));
+  for (let i = 0; i < 11000; i++) {
+    const n = Math.sin(i * 12.9898) * 43758.5453;
+    const r = n - Math.floor(n);
+    const m = Math.sin((i + 17) * 78.233) * 96321.517;
+    const r2 = m - Math.floor(m);
+    const x = r * s;
+    const y = r2 * s;
+
+    tctx.strokeStyle = i % 3 === 0 ? 'rgba(84,146,74,0.28)' : i % 3 === 1 ? 'rgba(38,87,33,0.24)' : 'rgba(56,114,48,0.22)';
+    tctx.lineWidth = 0.8 + (r * 1.3);
+    tctx.beginPath();
+    tctx.moveTo(x, y);
+    tctx.quadraticCurveTo(x + 2 + r * 10, y - 7 - r2 * 8, x + 4 + r2 * 8, y - 14 - r * 8);
+    tctx.stroke();
   }
 
-  tctx.globalAlpha = 0.2;
-  tctx.fillStyle = '#102414';
-  for (let i = 0; i < 5000; i++) {
-    const x = (i * 31 + 9) % s;
-    const y = (i * 23 + 17) % s;
-    tctx.fillRect(x, y, 6 + (i % 5), 1 + (i % 2));
+  for (let i = 0; i < 260; i++) {
+    const n = Math.sin((i + 31) * 19.773) * 18347.113;
+    const r = n - Math.floor(n);
+    const m = Math.sin((i + 47) * 31.197) * 55427.817;
+    const r2 = m - Math.floor(m);
+    const x = r * s;
+    const y = r2 * s;
+    const radius = 24 + r * 52;
+    const patch = tctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
+    patch.addColorStop(0, 'rgba(106,153,86,0.12)');
+    patch.addColorStop(1, 'rgba(0,0,0,0)');
+    tctx.fillStyle = patch;
+    tctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
-  const vignette = tctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.25, s * 0.5, s * 0.5, s * 0.9);
+  const vignette = tctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.22, s * 0.5, s * 0.5, s * 0.94);
   vignette.addColorStop(0, 'rgba(255,255,255,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.2)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.24)');
   tctx.globalAlpha = 1;
   tctx.fillStyle = vignette;
   tctx.fillRect(0, 0, s, s);
@@ -155,38 +178,46 @@ function createGravelPattern() {
   tex.width = TEXTURE_RES_2K;
   tex.height = TEXTURE_RES_2K;
   const tctx = tex.getContext('2d');
+  setHighQualitySmoothing(tctx);
   const s = TEXTURE_RES_2K;
 
   const baseGrad = tctx.createLinearGradient(0, 0, s, s);
-  baseGrad.addColorStop(0, '#7b766b');
-  baseGrad.addColorStop(0.5, '#645f55');
-  baseGrad.addColorStop(1, '#4f4b43');
+  baseGrad.addColorStop(0, '#7a756b');
+  baseGrad.addColorStop(0.45, '#666157');
+  baseGrad.addColorStop(1, '#4b4740');
   tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 11000; i++) {
-    const x = (i * 13 + (i % 71) * 7) % s;
-    const y = (i * 19 + (i % 59) * 5) % s;
-    const size = (i % 4) + 1;
-    const shade = i % 5;
-    tctx.fillStyle = shade < 2 ? '#908a79' : shade < 4 ? '#5f594f' : '#4a453d';
-    tctx.fillRect(x, y, size, size);
+  for (let i = 0; i < 6800; i++) {
+    const n = Math.sin((i + 7) * 17.831) * 51673.229;
+    const r = n - Math.floor(n);
+    const m = Math.sin((i + 23) * 33.917) * 21787.412;
+    const r2 = m - Math.floor(m);
+    const x = r * s;
+    const y = r2 * s;
+    const rw = 2 + r * 6;
+    const rh = 1 + r2 * 4;
+
+    tctx.fillStyle = i % 3 === 0 ? 'rgba(166,160,145,0.36)' : i % 3 === 1 ? 'rgba(117,111,99,0.34)' : 'rgba(83,78,69,0.30)';
+    tctx.beginPath();
+    tctx.ellipse(x, y, rw, rh, r * Math.PI, 0, Math.PI * 2);
+    tctx.fill();
   }
 
-  tctx.globalAlpha = 0.26;
-  tctx.strokeStyle = '#3d3933';
-  tctx.lineWidth = 1;
-  for (let i = 0; i < 3000; i++) {
-    const x = (i * 21 + 17) % s;
-    const y = (i * 37 + 11) % s;
+  tctx.globalAlpha = 0.3;
+  tctx.strokeStyle = '#423e37';
+  tctx.lineWidth = 1.1;
+  for (let i = 0; i < 2600; i++) {
+    const x = ((i * 21 + 17) % s) + 0.5;
+    const y = ((i * 37 + 11) % s) + 0.5;
     tctx.beginPath();
     tctx.moveTo(x, y);
-    tctx.lineTo(x + 5 + (i % 4), y + ((i % 5) - 2));
+    tctx.lineTo(x + 7 + (i % 5), y + ((i % 7) - 3));
     tctx.stroke();
   }
 
-  const dustGrad = tctx.createRadialGradient(s * 0.45, s * 0.4, s * 0.15, s * 0.45, s * 0.4, s * 0.9);
-  dustGrad.addColorStop(0, 'rgba(206,198,176,0.18)');
+  const dustGrad = tctx.createRadialGradient(s * 0.48, s * 0.38, s * 0.12, s * 0.48, s * 0.38, s * 0.92);
+  dustGrad.addColorStop(0, 'rgba(212,204,184,0.20)');
   dustGrad.addColorStop(1, 'rgba(0,0,0,0)');
   tctx.globalAlpha = 1;
   tctx.fillStyle = dustGrad;
@@ -207,6 +238,7 @@ function createPostSprite(drawFn) {
   tex.width = POST_SPRITE_TEXTURE_SIZE;
   tex.height = POST_SPRITE_TEXTURE_SIZE;
   const tctx = tex.getContext('2d');
+  setHighQualitySmoothing(tctx);
   const scale = POST_SPRITE_TEXTURE_SIZE / POST_SPRITE_BASE_SIZE;
   tctx.scale(scale, scale);
   drawFn(tctx);
@@ -357,6 +389,7 @@ function createUnitSprite(drawFn) {
   tex.width = UNIT_SPRITE_TEXTURE_SIZE;
   tex.height = UNIT_SPRITE_TEXTURE_SIZE;
   const tctx = tex.getContext('2d');
+  setHighQualitySmoothing(tctx);
   const scale = UNIT_SPRITE_TEXTURE_SIZE / UNIT_SPRITE_BASE_SIZE;
   tctx.scale(scale, scale);
   drawFn(tctx);
@@ -1630,6 +1663,7 @@ function drawOverlayText() {
 
 function draw(now) {
   ensureUnitSprites();
+  setHighQualitySmoothing(ctx);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
