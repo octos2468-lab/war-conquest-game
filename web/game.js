@@ -20,6 +20,7 @@ const BOARD_PX = GRID_WIDTH * TILE_SIZE;
 const STARTING_GOLD = 220;
 const STARTING_LIVES = 20;
 const MAX_WAVES = 10;
+const SELL_RATIO = 0.7;
 
 const postStats = {
   archer: {
@@ -35,9 +36,9 @@ const postStats = {
   soldier: {
     name: 'Soldier Barracks',
     cost: 140,
-    damage: 24,
-    fireRate: 1.0,
-    rangeTiles: 2,
+    damage: 22,
+    fireRate: 0.65,
+    rangeTiles: 4,
     color: '#2563eb',
     projectileColor: '#06b6d4',
     projectileSpeed: 4,
@@ -71,11 +72,14 @@ function createPath() {
 
 function createHero() {
   return {
+    anchorX: heroAnchor[0] * TILE_SIZE + TILE_SIZE / 2,
+    anchorY: heroAnchor[1] * TILE_SIZE + TILE_SIZE / 2,
     x: heroAnchor[0] * TILE_SIZE + TILE_SIZE / 2,
     y: heroAnchor[1] * TILE_SIZE + TILE_SIZE / 2,
-    attackDamage: 18,
-    attackRange: TILE_SIZE * 3,
-    attackCooldown: 0.9,
+    moveSpeed: 3,
+    attackDamage: 22,
+    attackRange: 22,
+    attackCooldown: 0.7,
     attackTimer: 0,
     slashDamage: 30,
     slashRange: TILE_SIZE * 2,
@@ -89,6 +93,9 @@ function createHero() {
     escapeCooldown: 14,
     escapeTimer: 0,
     escapeCharges: 0,
+    attackAnimTime: 0,
+    attackDx: 1,
+    attackDy: 0,
   };
 }
 
@@ -101,13 +108,15 @@ function resetGame() {
     wave: 0,
     selectedPost: null,
     posts: [],
+    soldiers: [],
     enemies: [],
     projectiles: [],
+    debugInfiniteGold: false,
     hero: createHero(),
   };
 
   updateUI();
-  setMessage('Deploy Army Posts, then start the wave.');
+  setMessage('Deploy Army Posts. Right-click to sell. Press D for debug gold.');
   selectPost(null);
 }
 
@@ -120,7 +129,7 @@ function formatCooldown(value) {
 }
 
 function updateUI() {
-  goldEl.textContent = String(state.gold);
+  goldEl.textContent = state.debugInfiniteGold ? 'INF' : String(state.gold);
   livesEl.textContent = String(state.lives);
   armyXpEl.textContent = String(state.armyXp);
   waveEl.textContent = `${state.wave}/${MAX_WAVES}`;
@@ -145,6 +154,10 @@ function canPlacePost(gridX, gridY) {
   if (pathSet.has(`${gridX},${gridY}`)) return false;
   if (gridX === heroAnchor[0] && gridY === heroAnchor[1]) return false;
   return !state.posts.some((post) => post.gridX === gridX && post.gridY === gridY);
+}
+
+function getPostAt(gridX, gridY) {
+  return state.posts.find((post) => post.gridX === gridX && post.gridY === gridY) || null;
 }
 
 function pickEnemyType(wave, index) {
@@ -191,6 +204,13 @@ function createEnemy(wave, type, spawnDelaySeconds) {
   };
 }
 
+function spendGold(amount) {
+  if (state.debugInfiniteGold) return true;
+  if (state.gold < amount) return false;
+  state.gold -= amount;
+  return true;
+}
+
 function placePost(gridX, gridY) {
   if (state.phase !== 'between' && state.phase !== 'playing') return;
   if (!state.selectedPost) {
@@ -199,7 +219,7 @@ function placePost(gridX, gridY) {
   }
 
   const stats = postStats[state.selectedPost];
-  if (state.gold < stats.cost) {
+  if (!state.debugInfiniteGold && state.gold < stats.cost) {
     setMessage('Not enough gold for that Army Post.');
     return;
   }
@@ -209,16 +229,36 @@ function placePost(gridX, gridY) {
     return;
   }
 
-  state.gold -= stats.cost;
+  if (!spendGold(stats.cost)) {
+    setMessage('Not enough gold.');
+    return;
+  }
+
   state.posts.push({
     gridX,
     gridY,
     type: state.selectedPost,
     cooldown: 0,
+    spawnCooldown: 0,
   });
 
   updateUI();
   setMessage(`${stats.name} deployed.`);
+}
+
+function sellPost(gridX, gridY) {
+  const post = getPostAt(gridX, gridY);
+  if (!post) return;
+
+  const idx = state.posts.indexOf(post);
+  if (idx >= 0) state.posts.splice(idx, 1);
+
+  state.soldiers = state.soldiers.filter((unit) => unit.ownerPost !== post);
+
+  const refund = Math.floor(postStats[post.type].cost * SELL_RATIO);
+  if (!state.debugInfiniteGold) state.gold += refund;
+  updateUI();
+  setMessage(`Sold ${postStats[post.type].name} for ${refund} gold.`);
 }
 
 function getPostCenter(post) {
@@ -300,30 +340,65 @@ function updateEnemies(dt) {
   }
 }
 
-function heroBasicAttack() {
-  const hero = state.hero;
-  if (hero.attackTimer > 0) return;
-
+function heroChooseTarget() {
   let target = null;
   let bestDistance = Infinity;
 
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
-    const dist = Math.hypot(enemy.x - hero.x, enemy.y - hero.y);
-    if (dist <= hero.attackRange && dist < bestDistance) {
+    const dist = Math.hypot(enemy.x - state.hero.x, enemy.y - state.hero.y);
+    if (dist < bestDistance) {
       bestDistance = dist;
       target = enemy;
     }
   }
 
-  if (!target) return;
+  return { target, distance: bestDistance };
+}
+
+function heroMove(dt) {
+  const hero = state.hero;
+  const { target, distance } = heroChooseTarget();
+  const step = hero.moveSpeed * dt * 60;
+
+  if (target && distance > hero.attackRange * 0.85) {
+    const dx = target.x - hero.x;
+    const dy = target.y - hero.y;
+    if (distance > 0) {
+      hero.x += (dx / distance) * step;
+      hero.y += (dy / distance) * step;
+    }
+  } else if (!target) {
+    const dx = hero.anchorX - hero.x;
+    const dy = hero.anchorY - hero.y;
+    const homeDist = Math.hypot(dx, dy);
+    if (homeDist > 2) {
+      hero.x += (dx / homeDist) * step;
+      hero.y += (dy / homeDist) * step;
+    }
+  }
+}
+
+function heroBasicAttack() {
+  const hero = state.hero;
+  if (hero.attackTimer > 0) return;
+
+  const { target, distance } = heroChooseTarget();
+  if (!target || distance > hero.attackRange) return;
 
   target.health -= hero.attackDamage;
-  if (target.health <= 0) {
+  hero.attackTimer = hero.attackCooldown;
+  hero.attackAnimTime = 0.14;
+
+  if (distance > 0) {
+    hero.attackDx = (target.x - hero.x) / distance;
+    hero.attackDy = (target.y - hero.y) / distance;
+  }
+
+  if (target.health <= 0 && target.alive) {
     target.alive = false;
     addKillRewards(target);
   }
-  hero.attackTimer = hero.attackCooldown;
 }
 
 function heroSlash() {
@@ -346,6 +421,7 @@ function heroSlash() {
   }
 
   hero.slashTimer = hero.slashCooldown;
+  hero.attackAnimTime = 0.2;
 }
 
 function heroRally(now) {
@@ -379,25 +455,28 @@ function updateHero(dt, now) {
   hero.slashTimer = Math.max(0, hero.slashTimer - dt);
   hero.rallyTimer = Math.max(0, hero.rallyTimer - dt);
   hero.escapeTimer = Math.max(0, hero.escapeTimer - dt);
+  hero.attackAnimTime = Math.max(0, hero.attackAnimTime - dt);
 
   if (hero.rallyActiveUntil > 0 && now > hero.rallyActiveUntil) {
     hero.rallyActiveUntil = 0;
   }
 
+  heroMove(dt);
   heroSlash();
   heroRally(now);
   heroEscape();
   heroBasicAttack();
 }
 
-function updatePosts(dt, now) {
+function updateArcherPosts(dt, now) {
   const rallyActive = state.hero.rallyActiveUntil > now;
   const multiplier = rallyActive ? state.hero.rallyMultiplier : 1;
 
   for (const post of state.posts) {
+    if (post.type !== 'archer') continue;
+
     const stats = postStats[post.type];
     post.cooldown -= dt;
-
     if (post.cooldown > 0) continue;
 
     const target = findTargetForPost(post);
@@ -422,6 +501,96 @@ function updatePosts(dt, now) {
   }
 }
 
+function soldierFindTarget(unit) {
+  let target = null;
+  let bestDistance = Infinity;
+
+  for (const enemy of state.enemies) {
+    if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
+    const homeDist = Math.hypot(enemy.x - unit.homeX, enemy.y - unit.homeY);
+    if (homeDist > unit.leashRange) continue;
+
+    const dist = Math.hypot(enemy.x - unit.x, enemy.y - unit.y);
+    if (dist < bestDistance) {
+      bestDistance = dist;
+      target = enemy;
+    }
+  }
+
+  return { target, distance: bestDistance };
+}
+
+function updateSoldierBarracks(dt, now) {
+  const rallyActive = state.hero.rallyActiveUntil > now;
+  const multiplier = rallyActive ? state.hero.rallyMultiplier : 1;
+
+  const barracks = state.posts.filter((post) => post.type === 'soldier');
+  state.soldiers = state.soldiers.filter((unit) => barracks.includes(unit.ownerPost));
+
+  for (const post of barracks) {
+    const hasUnit = state.soldiers.some((unit) => unit.ownerPost === post);
+    post.spawnCooldown -= dt;
+    if (!hasUnit && post.spawnCooldown <= 0) {
+      const center = getPostCenter(post);
+      state.soldiers.push({
+        x: center.x,
+        y: center.y,
+        homeX: center.x,
+        homeY: center.y,
+        ownerPost: post,
+        speed: 2.6,
+        attackRange: 20,
+        leashRange: postStats.soldier.rangeTiles * TILE_SIZE,
+        damage: postStats.soldier.damage,
+        attackCooldown: 0.9,
+        attackTimer: 0,
+        attackAnimTime: 0,
+        attackDx: 1,
+        attackDy: 0,
+      });
+      post.spawnCooldown = 1 / postStats.soldier.fireRate;
+    }
+  }
+
+  for (const unit of state.soldiers) {
+    unit.attackTimer = Math.max(0, unit.attackTimer - dt);
+    unit.attackAnimTime = Math.max(0, unit.attackAnimTime - dt);
+
+    const { target, distance } = soldierFindTarget(unit);
+    const step = unit.speed * dt * 60;
+
+    if (target) {
+      const dx = target.x - unit.x;
+      const dy = target.y - unit.y;
+
+      if (distance > unit.attackRange && distance > 0) {
+        unit.x += (dx / distance) * step;
+        unit.y += (dy / distance) * step;
+      } else if (unit.attackTimer <= 0) {
+        target.health -= Math.round(unit.damage * multiplier);
+        unit.attackTimer = unit.attackCooldown;
+        unit.attackAnimTime = 0.15;
+        if (distance > 0) {
+          unit.attackDx = dx / distance;
+          unit.attackDy = dy / distance;
+        }
+        if (target.health <= 0 && target.alive) {
+          target.alive = false;
+          addKillRewards(target);
+        }
+      }
+    } else {
+      const dx = unit.homeX - unit.x;
+      const dy = unit.homeY - unit.y;
+      const homeDist = Math.hypot(dx, dy);
+      if (homeDist > 2) {
+        unit.x += (dx / homeDist) * step;
+        unit.y += (dy / homeDist) * step;
+      }
+    }
+  }
+}
+
 function updateProjectiles(dt) {
   for (const projectile of state.projectiles) {
     if (!projectile.active) continue;
@@ -440,7 +609,7 @@ function updateProjectiles(dt) {
       if (dist < enemy.radius + 2) {
         enemy.health -= projectile.damage;
         projectile.active = false;
-        if (enemy.health <= 0) {
+        if (enemy.health <= 0 && enemy.alive) {
           enemy.alive = false;
           addKillRewards(enemy);
         }
@@ -480,7 +649,8 @@ function update(dt, now) {
 
   updateHero(dt, now);
   updateEnemies(dt);
-  updatePosts(dt, now);
+  updateArcherPosts(dt, now);
+  updateSoldierBarracks(dt, now);
   updateProjectiles(dt);
   checkWaveCompletion();
   updateUI();
@@ -504,13 +674,26 @@ function drawGrid() {
 }
 
 function drawHero() {
+  const hero = state.hero;
   ctx.fillStyle = '#facc15';
   ctx.beginPath();
-  ctx.arc(state.hero.x, state.hero.y, 10, 0, Math.PI * 2);
+  ctx.arc(hero.x, hero.y, 10, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = '#111827';
   ctx.stroke();
+
+  if (hero.attackAnimTime > 0) {
+    const tipX = hero.x + hero.attackDx * 18;
+    const tipY = hero.y + hero.attackDy * 18;
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(hero.x, hero.y);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
 }
 
 function drawPosts(now) {
@@ -535,6 +718,30 @@ function drawPosts(now) {
   }
 }
 
+function drawSoldiers() {
+  for (const unit of state.soldiers) {
+    ctx.fillStyle = '#06b6d4';
+    ctx.beginPath();
+    ctx.arc(unit.x, unit.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#111827';
+    ctx.stroke();
+
+    if (unit.attackAnimTime > 0) {
+      const tipX = unit.x + unit.attackDx * 14;
+      const tipY = unit.y + unit.attackDy * 14;
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(unit.x, unit.y);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+}
+
 function drawEnemies() {
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
@@ -550,16 +757,15 @@ function drawEnemies() {
     ctx.stroke();
 
     const barW = Math.max(24, enemy.radius * 2);
-    const barH = 4;
     const bx = enemy.x - barW / 2;
     const by = enemy.y - enemy.radius - 10;
 
     ctx.fillStyle = '#111827';
-    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillRect(bx, by, barW, 4);
 
     const hpW = Math.max(0, (enemy.health / enemy.maxHealth) * barW);
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(bx, by, hpW, barH);
+    ctx.fillRect(bx, by, hpW, 4);
   }
 }
 
@@ -579,7 +785,7 @@ function drawHoverPreview() {
   if (x < 0 || y < 0 || x >= GRID_WIDTH || y >= GRID_HEIGHT) return;
 
   const stats = postStats[state.selectedPost];
-  const valid = canPlacePost(x, y) && state.gold >= stats.cost;
+  const valid = canPlacePost(x, y) && (state.debugInfiniteGold || state.gold >= stats.cost);
 
   ctx.fillStyle = valid ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)';
   ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -607,6 +813,7 @@ function draw(now) {
   drawHoverPreview();
   drawHero();
   drawPosts(now);
+  drawSoldiers();
   drawEnemies();
   drawProjectiles();
   drawOverlayText();
@@ -641,6 +848,16 @@ canvas.addEventListener('click', (event) => {
   placePost(gridX, gridY);
 });
 
+canvas.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+  if (state.phase === 'gameover' || state.phase === 'victory') return;
+
+  const rect = canvas.getBoundingClientRect();
+  const gridX = Math.floor((event.clientX - rect.left) / TILE_SIZE);
+  const gridY = Math.floor((event.clientY - rect.top) / TILE_SIZE);
+  sellPost(gridX, gridY);
+});
+
 towerButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     const selected = btn.dataset.type;
@@ -659,6 +876,11 @@ restartBtn.addEventListener('click', () => {
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 'r') {
     resetGame();
+  }
+  if (event.key.toLowerCase() === 'd') {
+    state.debugInfiniteGold = !state.debugInfiniteGold;
+    setMessage(`Debug infinite gold ${state.debugInfiniteGold ? 'enabled' : 'disabled'}.`);
+    updateUI();
   }
 });
 
