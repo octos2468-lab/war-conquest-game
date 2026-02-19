@@ -1235,6 +1235,13 @@ canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault();
   if (state.phase === 'gameover' || state.phase === 'victory') return;
 
+  if (state.selectedPostType) {
+    selectPostType(null);
+    state.selectedPlacedPost = null;
+    setMessage('Placement cancelled.');
+    return;
+  }
+
   const pos = getBoardCoordinatesFromEvent(event);
   const gridX = pos.gridX;
   const gridY = pos.gridY;
