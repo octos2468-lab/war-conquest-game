@@ -20,6 +20,7 @@ const TILE_SIZE = 30;
 const GRID_WIDTH = 28;
 const GRID_HEIGHT = 28;
 const BOARD_PX = GRID_WIDTH * TILE_SIZE;
+const PATH_HALF_WIDTH_TILES = 1;
 const STARTING_GOLD = 220;
 const STARTING_LIVES = 20;
 const MAX_WAVES = 10;
@@ -55,7 +56,8 @@ const enemyStats = {
 };
 
 const path = createPath();
-const pathSet = new Set(path.map(([x, y]) => `${x},${y}`));
+const pathCells = buildWidePathCells(path, PATH_HALF_WIDTH_TILES);
+const pathSet = new Set(pathCells.map(([x, y]) => `${x},${y}`));
 const heroAnchor = path[Math.floor(path.length / 2)];
 
 let state;
@@ -94,6 +96,23 @@ function createPath() {
   for (let y = 17; y < 24; y++) result.push([5, y]);
   for (let x = 5; x < GRID_WIDTH; x++) result.push([x, 24]);
   return result;
+}
+
+function buildWidePathCells(centerPath, halfWidth) {
+  const cells = new Set();
+
+  for (const [x, y] of centerPath) {
+    for (let ox = -halfWidth; ox <= halfWidth; ox++) {
+      for (let oy = -halfWidth; oy <= halfWidth; oy++) {
+        const nx = x + ox;
+        const ny = y + oy;
+        if (nx < 0 || nx >= GRID_WIDTH || ny < 0 || ny >= GRID_HEIGHT) continue;
+        cells.add(`${nx},${ny}`);
+      }
+    }
+  }
+
+  return [...cells].map((value) => value.split(',').map(Number));
 }
 
 function createHero() {
@@ -230,6 +249,8 @@ function createEnemy(wave, type, spawnDelaySeconds) {
   const archetype = enemyStats[type];
   const baseHealth = 45 + wave * 11;
   const baseSpeed = 1.4 + wave * 0.1;
+  const maxLaneOffset = TILE_SIZE * (0.65 * PATH_HALF_WIDTH_TILES);
+  const baseLaneOffset = (Math.random() * 2 - 1) * maxLaneOffset;
 
   return {
     type,
@@ -246,6 +267,8 @@ function createEnemy(wave, type, spawnDelaySeconds) {
     attackTimer: 0,
     facingX: 1,
     facingY: 0,
+    baseLaneOffset,
+    laneOffset: baseLaneOffset,
     alive: true,
     reachedEnd: false,
     spawnDelay: spawnDelaySeconds,
@@ -521,6 +544,7 @@ function updateHero(dt, now) {
 
 function updateEnemies(dt) {
   const friendlies = gatherFriendlyTargets();
+  const maxLaneOffset = TILE_SIZE * (0.65 * PATH_HALF_WIDTH_TILES);
 
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd) continue;
@@ -589,8 +613,23 @@ function updateEnemies(dt) {
     }
 
     const [gridX, gridY] = path[enemy.pathIndex];
-    const tx = gridX * TILE_SIZE + TILE_SIZE / 2;
-    const ty = gridY * TILE_SIZE + TILE_SIZE / 2;
+
+    let dirX = 1;
+    let dirY = 0;
+    if (enemy.pathIndex < path.length - 1) {
+      dirX = path[enemy.pathIndex + 1][0] - gridX;
+      dirY = path[enemy.pathIndex + 1][1] - gridY;
+    } else if (enemy.pathIndex > 0) {
+      dirX = gridX - path[enemy.pathIndex - 1][0];
+      dirY = gridY - path[enemy.pathIndex - 1][1];
+    }
+
+    const dirLen = Math.hypot(dirX, dirY) || 1;
+    const nx = -dirY / dirLen;
+    const ny = dirX / dirLen;
+
+    const tx = gridX * TILE_SIZE + TILE_SIZE / 2 + nx * enemy.laneOffset;
+    const ty = gridY * TILE_SIZE + TILE_SIZE / 2 + ny * enemy.laneOffset;
 
     const dx = tx - enemy.x;
     const dy = ty - enemy.y;
@@ -599,6 +638,9 @@ function updateEnemies(dt) {
 
     if (dist <= step) {
       enemy.pathIndex += 1;
+      const wobble = (Math.random() * 2 - 1) * TILE_SIZE * 0.2;
+      const desiredOffset = enemy.baseLaneOffset + wobble;
+      enemy.laneOffset = Math.max(-maxLaneOffset, Math.min(maxLaneOffset, desiredOffset));
     } else if (dist > 0) {
       enemy.facingX = dx / dist;
       enemy.facingY = dy / dist;
@@ -824,7 +866,7 @@ function drawGrid() {
   }
 
   ctx.fillStyle = '#4b5563';
-  for (const [x, y] of path) {
+  for (const [x, y] of pathCells) {
     ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
 }
