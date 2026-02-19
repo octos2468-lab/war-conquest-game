@@ -72,6 +72,12 @@ let gravelPattern = null;
 let unitSprites = null;
 let postSprites = null;
 
+const TEXTURE_RES_2K = 2048;
+const UNIT_SPRITE_BASE_SIZE = 48;
+const UNIT_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
+const POST_SPRITE_BASE_SIZE = 64;
+const POST_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
+
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
   if (!wrapper) return;
@@ -104,32 +110,41 @@ function createPath() {
 
 function createGrassPattern() {
   const tex = document.createElement('canvas');
-  tex.width = 64;
-  tex.height = 64;
+  tex.width = TEXTURE_RES_2K;
+  tex.height = TEXTURE_RES_2K;
   const tctx = tex.getContext('2d');
+  const s = TEXTURE_RES_2K;
 
-  const baseGrad = tctx.createLinearGradient(0, 0, 64, 64);
-  baseGrad.addColorStop(0, '#3b7a36');
-  baseGrad.addColorStop(0.55, '#2f692b');
-  baseGrad.addColorStop(1, '#265922');
+  const baseGrad = tctx.createLinearGradient(0, 0, s, s);
+  baseGrad.addColorStop(0, '#2a5e27');
+  baseGrad.addColorStop(0.5, '#204b1e');
+  baseGrad.addColorStop(1, '#173916');
   tctx.fillStyle = baseGrad;
-  tctx.fillRect(0, 0, 64, 64);
+  tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 260; i++) {
-    const x = (i * 17) % 64;
-    const y = (i * 29) % 64;
+  for (let i = 0; i < 13000; i++) {
+    const x = (i * 17 + (i % 53) * 11) % s;
+    const y = (i * 29 + (i % 41) * 13) % s;
     const shade = i % 4;
-    tctx.fillStyle = shade === 0 ? '#4f9446' : shade === 1 ? '#356f31' : shade === 2 ? '#5aa050' : '#2d5d29';
-    tctx.fillRect(x, y, 1 + (i % 2), 1 + ((i + 1) % 2));
+    tctx.fillStyle = shade === 0 ? '#356c31' : shade === 1 ? '#2a5926' : shade === 2 ? '#3f7a3a' : '#234820';
+    tctx.fillRect(x, y, 2 + (i % 3), 2 + ((i + 1) % 3));
   }
 
-  tctx.globalAlpha = 0.18;
-  tctx.fillStyle = '#112915';
-  for (let i = 0; i < 70; i++) {
-    const x = (i * 31 + 9) % 64;
-    const y = (i * 23 + 17) % 64;
-    tctx.fillRect(x, y, 6, 1);
+  tctx.globalAlpha = 0.2;
+  tctx.fillStyle = '#102414';
+  for (let i = 0; i < 5000; i++) {
+    const x = (i * 31 + 9) % s;
+    const y = (i * 23 + 17) % s;
+    tctx.fillRect(x, y, 6 + (i % 5), 1 + (i % 2));
   }
+
+  const vignette = tctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.25, s * 0.5, s * 0.5, s * 0.9);
+  vignette.addColorStop(0, 'rgba(255,255,255,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.2)');
+  tctx.globalAlpha = 1;
+  tctx.fillStyle = vignette;
+  tctx.fillRect(0, 0, s, s);
+
   tctx.globalAlpha = 1;
 
   return ctx.createPattern(tex, 'repeat');
@@ -137,37 +152,46 @@ function createGrassPattern() {
 
 function createGravelPattern() {
   const tex = document.createElement('canvas');
-  tex.width = 64;
-  tex.height = 64;
+  tex.width = TEXTURE_RES_2K;
+  tex.height = TEXTURE_RES_2K;
   const tctx = tex.getContext('2d');
+  const s = TEXTURE_RES_2K;
 
-  const baseGrad = tctx.createLinearGradient(0, 0, 64, 64);
-  baseGrad.addColorStop(0, '#8f8b7d');
-  baseGrad.addColorStop(0.5, '#777366');
-  baseGrad.addColorStop(1, '#666055');
+  const baseGrad = tctx.createLinearGradient(0, 0, s, s);
+  baseGrad.addColorStop(0, '#7b766b');
+  baseGrad.addColorStop(0.5, '#645f55');
+  baseGrad.addColorStop(1, '#4f4b43');
   tctx.fillStyle = baseGrad;
-  tctx.fillRect(0, 0, 64, 64);
+  tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 230; i++) {
-    const x = (i * 13 + (i % 7) * 3) % 64;
-    const y = (i * 19 + (i % 5) * 5) % 64;
-    const size = (i % 3) + 1;
+  for (let i = 0; i < 11000; i++) {
+    const x = (i * 13 + (i % 71) * 7) % s;
+    const y = (i * 19 + (i % 59) * 5) % s;
+    const size = (i % 4) + 1;
     const shade = i % 5;
-    tctx.fillStyle = shade < 2 ? '#a8a393' : shade < 4 ? '#726d61' : '#59554b';
+    tctx.fillStyle = shade < 2 ? '#908a79' : shade < 4 ? '#5f594f' : '#4a453d';
     tctx.fillRect(x, y, size, size);
   }
 
-  tctx.globalAlpha = 0.22;
-  tctx.strokeStyle = '#514d43';
+  tctx.globalAlpha = 0.26;
+  tctx.strokeStyle = '#3d3933';
   tctx.lineWidth = 1;
-  for (let i = 0; i < 34; i++) {
-    const x = (i * 21) % 64;
-    const y = (i * 37) % 64;
+  for (let i = 0; i < 3000; i++) {
+    const x = (i * 21 + 17) % s;
+    const y = (i * 37 + 11) % s;
     tctx.beginPath();
     tctx.moveTo(x, y);
-    tctx.lineTo(x + 4, y + ((i % 3) - 1));
+    tctx.lineTo(x + 5 + (i % 4), y + ((i % 5) - 2));
     tctx.stroke();
   }
+
+  const dustGrad = tctx.createRadialGradient(s * 0.45, s * 0.4, s * 0.15, s * 0.45, s * 0.4, s * 0.9);
+  dustGrad.addColorStop(0, 'rgba(206,198,176,0.18)');
+  dustGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  tctx.globalAlpha = 1;
+  tctx.fillStyle = dustGrad;
+  tctx.fillRect(0, 0, s, s);
+
   tctx.globalAlpha = 1;
 
   return ctx.createPattern(tex, 'repeat');
@@ -180,9 +204,11 @@ function ensureTerrainPatterns() {
 
 function createPostSprite(drawFn) {
   const tex = document.createElement('canvas');
-  tex.width = 64;
-  tex.height = 64;
+  tex.width = POST_SPRITE_TEXTURE_SIZE;
+  tex.height = POST_SPRITE_TEXTURE_SIZE;
   const tctx = tex.getContext('2d');
+  const scale = POST_SPRITE_TEXTURE_SIZE / POST_SPRITE_BASE_SIZE;
+  tctx.scale(scale, scale);
   drawFn(tctx);
   return tex;
 }
@@ -328,9 +354,11 @@ function ensurePostSprites() {
 
 function createUnitSprite(drawFn) {
   const tex = document.createElement('canvas');
-  tex.width = 48;
-  tex.height = 48;
+  tex.width = UNIT_SPRITE_TEXTURE_SIZE;
+  tex.height = UNIT_SPRITE_TEXTURE_SIZE;
   const tctx = tex.getContext('2d');
+  const scale = UNIT_SPRITE_TEXTURE_SIZE / UNIT_SPRITE_BASE_SIZE;
+  tctx.scale(scale, scale);
   drawFn(tctx);
   return tex;
 }
