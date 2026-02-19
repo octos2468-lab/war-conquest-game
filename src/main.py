@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 War Conquest - Tower Defense Phase
-Army-post based defense with hero chase combat.
+Army-post based defense with melee engagements, HP, and respawn systems.
 """
 
 import math
@@ -79,22 +79,24 @@ class EnemyStats:
     reward: int
     color: Tuple[int, int, int]
     radius: int
+    attack: int
+    attack_speed: float
 
 
 TOWER_TYPES = {
     TowerType.ARCHER_POST: TowerStats("Archer Post", 110, 14, 1.8, 4, BROWN, ORANGE),
-    TowerType.SOLDIER_BARRACKS: TowerStats("Soldier Barracks", 140, 22, 0.65, 4, BLUE, CYAN),
+    TowerType.SOLDIER_BARRACKS: TowerStats("Soldier Barracks", 140, 18, 0.45, 4, BLUE, CYAN),
 }
 
 ENEMY_TYPES = {
-    EnemyType.MILITIA: EnemyStats("Militia", 0.9, 1.25, 12, RED, 10),
-    EnemyType.RAIDER: EnemyStats("Raider", 1.0, 1.0, 15, ORANGE, 12),
-    EnemyType.BRUTE: EnemyStats("Brute", 1.8, 0.72, 25, PURPLE, 14),
+    EnemyType.MILITIA: EnemyStats("Militia", 0.9, 1.25, 12, RED, 10, 8, 0.85),
+    EnemyType.RAIDER: EnemyStats("Raider", 1.0, 1.0, 15, ORANGE, 12, 12, 0.95),
+    EnemyType.BRUTE: EnemyStats("Brute", 1.8, 0.72, 25, PURPLE, 14, 20, 1.15),
 }
 
 
 class Projectile:
-    def __init__(self, x, y, target_x, target_y, damage, color, speed=5):
+    def __init__(self, x, y, target_x, target_y, damage, color, speed=6):
         self.x = x
         self.y = y
         self.target_x = target_x
@@ -117,7 +119,6 @@ class Projectile:
     def update(self):
         self.x += self.vx
         self.y += self.vy
-
         if math.hypot(self.x - self.target_x, self.y - self.target_y) < 5:
             self.active = False
 
@@ -144,36 +145,16 @@ class Enemy:
         self.health = self.max_health
         self.reward = enemy_stats.reward
         self.radius = enemy_stats.radius
+        self.attack_damage = enemy_stats.attack
+        self.attack_cooldown = enemy_stats.attack_speed
+        self.last_attack_time = 0.0
+
+        self.facing_x = 1.0
+        self.facing_y = 0.0
 
         self.alive = True
         self.reached_end = False
         self.spawn_delay = spawn_delay
-
-    def update(self, dt):
-        if not self.alive or self.reached_end:
-            return
-
-        if self.spawn_delay > 0:
-            self.spawn_delay -= dt
-            return
-
-        if self.path_index >= len(self.path):
-            self.reached_end = True
-            return
-
-        target_x = self.path[self.path_index][0] * TILE_SIZE + TILE_SIZE // 2
-        target_y = self.path[self.path_index][1] * TILE_SIZE + TILE_SIZE // 2
-
-        dx = target_x - self.x
-        dy = target_y - self.y
-        dist = math.hypot(dx, dy)
-
-        step = self.speed * dt * 60
-        if dist < step:
-            self.path_index += 1
-        elif dist > 0:
-            self.x += (dx / dist) * step
-            self.y += (dy / dist) * step
 
     def take_damage(self, damage):
         self.health -= damage
@@ -194,6 +175,10 @@ class Enemy:
         pygame.draw.circle(screen, self.enemy_stats.color, (int(self.x), int(self.y)), self.radius)
         pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), self.radius, 2)
 
+        face_tip_x = self.x + self.facing_x * (self.radius - 2)
+        face_tip_y = self.y + self.facing_y * (self.radius - 2)
+        pygame.draw.line(screen, BLACK, (int(self.x), int(self.y)), (int(face_tip_x), int(face_tip_y)), 2)
+
         bar_width = max(24, self.radius * 2)
         bar_x = self.x - bar_width // 2
         bar_y = self.y - self.radius - 10
@@ -211,7 +196,7 @@ class ArmyPost:
         self.tower_type = tower_type
         self.stats = TOWER_TYPES[tower_type]
         self.last_shot_time = 0.0
-        self.last_spawn_time = 0.0
+        self.respawn_timer = 0.0
 
     def get_screen_pos(self):
         return (
@@ -223,10 +208,6 @@ class ArmyPost:
         cooldown = 1.0 / self.stats.fire_rate
         return current_time - self.last_shot_time >= cooldown
 
-    def can_spawn(self, current_time: float):
-        cooldown = 1.0 / self.stats.fire_rate
-        return current_time - self.last_spawn_time >= cooldown
-
     def find_target(self, enemies):
         x, y = self.get_screen_pos()
         range_pixels = self.stats.range * TILE_SIZE
@@ -237,7 +218,6 @@ class ArmyPost:
         for enemy in enemies:
             if not enemy.alive or enemy.reached_end or enemy.spawn_delay > 0:
                 continue
-
             dist = math.hypot(enemy.x - x, enemy.y - y)
             if dist <= range_pixels and dist < closest_dist:
                 closest_enemy = enemy
@@ -251,16 +231,11 @@ class ArmyPost:
 
         self.last_shot_time = current_time
         x, y = self.get_screen_pos()
-
         damage = int(self.stats.damage * damage_multiplier)
-        return Projectile(x, y, target.x, target.y, damage, self.stats.projectile_color, speed=6)
+        return Projectile(x, y, target.x, target.y, damage, self.stats.projectile_color)
 
     def draw(self, screen, rally_active=False):
         x, y = self.get_screen_pos()
-
-        range_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(range_surface, (*self.stats.color, 30), (x, y), self.stats.range * TILE_SIZE)
-        screen.blit(range_surface, (0, 0))
 
         pygame.draw.rect(
             screen,
@@ -286,16 +261,24 @@ class SoldierUnit:
         self.y = home_y
         self.owner_post = owner_post
 
-        self.speed = 2.6
+        self.max_health = 80
+        self.health = self.max_health
+        self.alive = True
+
+        self.speed = 2.4
         self.attack_range = 20
         self.leash_range = owner_post.stats.range * TILE_SIZE
-        self.attack_damage = owner_post.stats.damage
+        self.attack_damage = 20
         self.attack_cooldown = 0.9
         self.last_attack_time = 0.0
         self.attack_anim_time = 0.0
-        self.attack_dx = 1.0
-        self.attack_dy = 0.0
-        self.active = True
+        self.facing_x = 1.0
+        self.facing_y = 0.0
+
+    def take_damage(self, damage: int):
+        self.health -= damage
+        if self.health <= 0:
+            self.alive = False
 
     def find_target(self, enemies):
         closest = None
@@ -307,62 +290,33 @@ class SoldierUnit:
             dist_home = math.hypot(enemy.x - self.home_x, enemy.y - self.home_y)
             if dist_home > self.leash_range:
                 continue
-
             dist_self = math.hypot(enemy.x - self.x, enemy.y - self.y)
             if dist_self < closest_dist:
                 closest = enemy
                 closest_dist = dist_self
 
-        return closest
-
-    def update(self, dt: float, now: float, enemies, damage_multiplier=1.0):
-        if not self.active:
-            return []
-
-        rewards = []
-        if self.attack_anim_time > 0:
-            self.attack_anim_time = max(0.0, self.attack_anim_time - dt)
-
-        target = self.find_target(enemies)
-        if target:
-            dx = target.x - self.x
-            dy = target.y - self.y
-            dist = math.hypot(dx, dy)
-            step = self.speed * dt * 60
-
-            if dist > self.attack_range and dist > 0:
-                self.x += (dx / dist) * step
-                self.y += (dy / dist) * step
-            elif now - self.last_attack_time >= self.attack_cooldown:
-                target.take_damage(int(self.attack_damage * damage_multiplier))
-                self.last_attack_time = now
-                self.attack_anim_time = 0.15
-                if dist > 0:
-                    self.attack_dx = dx / dist
-                    self.attack_dy = dy / dist
-                if not target.alive:
-                    rewards.append(target)
-        else:
-            dx = self.home_x - self.x
-            dy = self.home_y - self.y
-            dist = math.hypot(dx, dy)
-            step = self.speed * dt * 60
-            if dist > 2 and dist > 0:
-                self.x += (dx / dist) * step
-                self.y += (dy / dist) * step
-
-        return rewards
+        return closest, closest_dist
 
     def draw(self, screen):
-        if not self.active:
+        if not self.alive:
             return
 
         pygame.draw.circle(screen, CYAN, (int(self.x), int(self.y)), 8)
         pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), 8, 2)
 
+        face_tip_x = self.x + self.facing_x * 8
+        face_tip_y = self.y + self.facing_y * 8
+        pygame.draw.line(screen, BLACK, (int(self.x), int(self.y)), (int(face_tip_x), int(face_tip_y)), 2)
+
+        bar_w = 16
+        pygame.draw.rect(screen, BLACK, (self.x - bar_w // 2, self.y - 16, bar_w, 3))
+        hp_w = int((self.health / self.max_health) * bar_w)
+        if hp_w > 0:
+            pygame.draw.rect(screen, GREEN, (self.x - bar_w // 2, self.y - 16, hp_w, 3))
+
         if self.attack_anim_time > 0:
-            tip_x = self.x + self.attack_dx * 14
-            tip_y = self.y + self.attack_dy * 14
+            tip_x = self.x + self.facing_x * 14
+            tip_y = self.y + self.facing_y * 14
             pygame.draw.line(screen, YELLOW, (int(self.x), int(self.y)), (int(tip_x), int(tip_y)), 3)
 
 
@@ -375,14 +329,21 @@ class Hero:
 
         self.x = float(self.anchor_x)
         self.y = float(self.anchor_y)
-        self.move_speed = 3.0
 
-        self.attack_damage = 22
+        self.max_health = 250
+        self.health = self.max_health
+        self.alive = True
+        self.respawn_duration = 8.0
+        self.respawn_timer = 0.0
+
+        self.move_speed = 2.8
+
+        self.attack_damage = 24
         self.attack_range = 22
         self.attack_cooldown = 0.7
         self.last_attack_time = 0.0
 
-        self.slash_damage = 30
+        self.slash_damage = 36
         self.slash_range = 2 * TILE_SIZE
         self.slash_cooldown = 3.0
         self.last_slash_time = -99.0
@@ -398,8 +359,8 @@ class Hero:
         self.escape_charges = 0
 
         self.attack_anim_time = 0.0
-        self.attack_dx = 1.0
-        self.attack_dy = 0.0
+        self.facing_x = 1.0
+        self.facing_y = 0.0
 
     @property
     def grid_x(self):
@@ -408,6 +369,20 @@ class Hero:
     @property
     def grid_y(self):
         return int(self.anchor_grid[1])
+
+    def take_damage(self, damage: int):
+        if not self.alive:
+            return
+        self.health -= damage
+        if self.health <= 0:
+            self.alive = False
+            self.respawn_timer = self.respawn_duration
+
+    def respawn(self):
+        self.alive = True
+        self.health = self.max_health
+        self.x = float(self.anchor_x)
+        self.y = float(self.anchor_y)
 
     def get_status(self, now):
         slash_ready = max(0.0, self.slash_cooldown - (now - self.last_slash_time))
@@ -443,6 +418,7 @@ class Game:
         self.hero = Hero(self.path)
 
         self.selected_tower_type: Optional[TowerType] = None
+        self.selected_post: Optional[ArmyPost] = None
         self.hover_pos = None
 
         self.path_set = set(self.path)
@@ -466,17 +442,13 @@ class Game:
     def can_place_tower(self, grid_x, grid_y):
         if grid_x < 0 or grid_x >= GRID_WIDTH or grid_y < 0 or grid_y >= GRID_HEIGHT:
             return False
-
         if (grid_x, grid_y) in self.path_set:
             return False
-
+        if (grid_x, grid_y) == (self.hero.grid_x, self.hero.grid_y):
+            return False
         for post in self.posts:
             if post.grid_x == grid_x and post.grid_y == grid_y:
                 return False
-
-        if (grid_x, grid_y) == (self.hero.grid_x, self.hero.grid_y):
-            return False
-
         return True
 
     def get_post_at(self, grid_x: int, grid_y: int):
@@ -506,8 +478,7 @@ class Game:
 
         for i in range(enemies_count):
             enemy_type = self.pick_enemy_type(self.wave_number, i)
-            enemy = Enemy(self.path, self.wave_number, enemy_type, spawn_delay=i * 0.45)
-            self.enemies.append(enemy)
+            self.enemies.append(Enemy(self.path, self.wave_number, enemy_type, spawn_delay=i * 0.45))
 
         self.state = GameState.PLAYING
         self.status_message = f"Wave {self.wave_number} started."
@@ -520,56 +491,75 @@ class Game:
         self.gold -= amount
         return True
 
-    def hero_choose_target(self):
+    def gather_friendly_targets(self):
+        targets = []
+        if self.hero.alive:
+            targets.append(self.hero)
+        for soldier in self.soldiers:
+            if soldier.alive:
+                targets.append(soldier)
+        return targets
+
+    def choose_closest_enemy_to(self, x: float, y: float):
         closest = None
         closest_dist = float("inf")
         for enemy in self.enemies:
             if not enemy.alive or enemy.reached_end or enemy.spawn_delay > 0:
                 continue
-            dist = math.hypot(enemy.x - self.hero.x, enemy.y - self.hero.y)
+            dist = math.hypot(enemy.x - x, enemy.y - y)
             if dist < closest_dist:
                 closest = enemy
                 closest_dist = dist
         return closest, closest_dist
 
-    def hero_basic_attack(self, now: float):
-        if now - self.hero.last_attack_time < self.hero.attack_cooldown:
-            return
-
-        target, distance = self.hero_choose_target()
-        if target is None or distance > self.hero.attack_range:
-            return
-
-        target.take_damage(self.hero.attack_damage)
-        self.hero.last_attack_time = now
-        self.hero.attack_anim_time = 0.14
-
-        if distance > 0:
-            self.hero.attack_dx = (target.x - self.hero.x) / distance
-            self.hero.attack_dy = (target.y - self.hero.y) / distance
-
-        if not target.alive:
-            self.add_kill_reward(target)
-
     def hero_move(self, dt: float):
-        target, distance = self.hero_choose_target()
+        if not self.hero.alive:
+            return
+
+        target, distance = self.choose_closest_enemy_to(self.hero.x, self.hero.y)
         step = self.hero.move_speed * dt * 60
 
         if target and distance > self.hero.attack_range * 0.85:
             dx = target.x - self.hero.x
             dy = target.y - self.hero.y
             if distance > 0:
-                self.hero.x += (dx / distance) * step
-                self.hero.y += (dy / distance) * step
+                self.hero.facing_x = dx / distance
+                self.hero.facing_y = dy / distance
+                self.hero.x += self.hero.facing_x * step
+                self.hero.y += self.hero.facing_y * step
         elif target is None:
             dx = self.hero.anchor_x - self.hero.x
             dy = self.hero.anchor_y - self.hero.y
             dist_home = math.hypot(dx, dy)
             if dist_home > 2 and dist_home > 0:
-                self.hero.x += (dx / dist_home) * step
-                self.hero.y += (dy / dist_home) * step
+                self.hero.facing_x = dx / dist_home
+                self.hero.facing_y = dy / dist_home
+                self.hero.x += self.hero.facing_x * step
+                self.hero.y += self.hero.facing_y * step
+
+    def hero_basic_attack(self, now: float):
+        if not self.hero.alive:
+            return
+        if now - self.hero.last_attack_time < self.hero.attack_cooldown:
+            return
+
+        target, distance = self.choose_closest_enemy_to(self.hero.x, self.hero.y)
+        if target is None or distance > self.hero.attack_range:
+            return
+
+        if distance > 0:
+            self.hero.facing_x = (target.x - self.hero.x) / distance
+            self.hero.facing_y = (target.y - self.hero.y) / distance
+
+        target.take_damage(self.hero.attack_damage)
+        self.hero.last_attack_time = now
+        self.hero.attack_anim_time = 0.14
+        if not target.alive:
+            self.add_kill_reward(target)
 
     def hero_slash(self, now: float):
+        if not self.hero.alive:
+            return
         if now - self.hero.last_slash_time < self.hero.slash_cooldown:
             return
 
@@ -594,6 +584,8 @@ class Game:
         self.hero.attack_anim_time = 0.2
 
     def hero_rally(self, now: float):
+        if not self.hero.alive:
+            return
         if now - self.hero.last_rally_time < self.hero.rally_cooldown:
             return
 
@@ -605,6 +597,8 @@ class Game:
         self.hero.rally_until = now + self.hero.rally_duration
 
     def hero_escape(self, now: float):
+        if not self.hero.alive:
+            return
         if now - self.hero.last_escape_time < self.hero.escape_cooldown:
             return
 
@@ -618,64 +612,141 @@ class Game:
         self.hero.last_escape_time = now
         self.hero.escape_charges = 1
 
-    def update_soldier_barracks(self, dt: float, now: float, damage_multiplier: float):
-        current_barracks = [post for post in self.posts if post.tower_type == TowerType.SOLDIER_BARRACKS]
-
-        self.soldiers = [
-            soldier for soldier in self.soldiers if soldier.owner_post in current_barracks and soldier.active
-        ]
-
-        for barracks in current_barracks:
-            has_soldier = any(s.owner_post == barracks for s in self.soldiers)
-            if not has_soldier and barracks.can_spawn(now):
-                barracks.last_spawn_time = now
-                x, y = barracks.get_screen_pos()
-                self.soldiers.append(SoldierUnit(x, y, barracks))
-
-        for soldier in self.soldiers:
-            rewards = soldier.update(dt, now, self.enemies, damage_multiplier)
-            for enemy in rewards:
-                self.add_kill_reward(enemy)
-
-    def update_game(self, dt: float):
-        current_time = pygame.time.get_ticks() / 1000.0
-
+    def update_hero_state(self, dt: float):
         if self.hero.attack_anim_time > 0:
             self.hero.attack_anim_time = max(0.0, self.hero.attack_anim_time - dt)
 
-        self.hero_move(dt)
-        self.hero_slash(current_time)
-        self.hero_rally(current_time)
-        self.hero_escape(current_time)
-        self.hero_basic_attack(current_time)
+        if not self.hero.alive:
+            self.hero.respawn_timer = max(0.0, self.hero.respawn_timer - dt)
+            if self.hero.respawn_timer == 0:
+                self.hero.respawn()
+
+    def update_enemies(self, dt: float, now: float):
+        friendlies = self.gather_friendly_targets()
 
         for enemy in self.enemies:
-            if enemy.alive and not enemy.reached_end:
-                enemy.update(dt)
-                if enemy.reached_end:
-                    if self.hero.escape_charges > 0:
-                        self.hero.escape_charges -= 1
-                        enemy.reached_end = False
-                        enemy.retreat(tiles_back=8)
-                    else:
-                        self.lives -= 1
-                        if self.lives <= 0:
-                            self.state = GameState.GAME_OVER
+            if not enemy.alive or enemy.reached_end:
+                continue
 
-        rally_active = current_time <= self.hero.rally_until
-        damage_multiplier = self.hero.rally_multiplier if rally_active else 1.0
+            if enemy.spawn_delay > 0:
+                enemy.spawn_delay -= dt
+                continue
 
+            nearest_friend = None
+            nearest_dist = float("inf")
+            for friendly in friendlies:
+                dist = math.hypot(friendly.x - enemy.x, friendly.y - enemy.y)
+                if dist < nearest_dist:
+                    nearest_friend = friendly
+                    nearest_dist = dist
+
+            engage_radius = 26
+            attack_range = enemy.radius + 10
+
+            if nearest_friend and nearest_dist <= engage_radius:
+                dx = nearest_friend.x - enemy.x
+                dy = nearest_friend.y - enemy.y
+                if nearest_dist > 0:
+                    enemy.facing_x = dx / nearest_dist
+                    enemy.facing_y = dy / nearest_dist
+
+                if nearest_dist > attack_range:
+                    step = enemy.speed * dt * 60
+                    enemy.x += enemy.facing_x * step
+                    enemy.y += enemy.facing_y * step
+                elif now - enemy.last_attack_time >= enemy.attack_cooldown:
+                    nearest_friend.take_damage(enemy.attack_damage)
+                    enemy.last_attack_time = now
+                continue
+
+            if enemy.path_index >= len(self.path):
+                enemy.reached_end = True
+                if self.hero.escape_charges > 0:
+                    self.hero.escape_charges -= 1
+                    enemy.reached_end = False
+                    enemy.retreat(tiles_back=8)
+                else:
+                    self.lives -= 1
+                    if self.lives <= 0:
+                        self.state = GameState.GAME_OVER
+                continue
+
+            target_x = self.path[enemy.path_index][0] * TILE_SIZE + TILE_SIZE // 2
+            target_y = self.path[enemy.path_index][1] * TILE_SIZE + TILE_SIZE // 2
+            dx = target_x - enemy.x
+            dy = target_y - enemy.y
+            dist = math.hypot(dx, dy)
+            step = enemy.speed * dt * 60
+
+            if dist < step:
+                enemy.path_index += 1
+            elif dist > 0:
+                enemy.facing_x = dx / dist
+                enemy.facing_y = dy / dist
+                enemy.x += enemy.facing_x * step
+                enemy.y += enemy.facing_y * step
+
+    def update_soldier_barracks(self, dt: float, now: float, damage_multiplier: float):
+        barracks_posts = [post for post in self.posts if post.tower_type == TowerType.SOLDIER_BARRACKS]
+
+        self.soldiers = [s for s in self.soldiers if s.owner_post in barracks_posts and s.alive]
+
+        for post in barracks_posts:
+            if post.respawn_timer > 0:
+                post.respawn_timer = max(0.0, post.respawn_timer - dt)
+
+            has_soldier = any(s.owner_post == post for s in self.soldiers)
+            if not has_soldier and post.respawn_timer == 0:
+                x, y = post.get_screen_pos()
+                self.soldiers.append(SoldierUnit(x, y, post))
+
+        for soldier in self.soldiers:
+            if soldier.attack_anim_time > 0:
+                soldier.attack_anim_time = max(0.0, soldier.attack_anim_time - dt)
+
+            target, distance = soldier.find_target(self.enemies)
+            step = soldier.speed * dt * 60
+
+            if target:
+                dx = target.x - soldier.x
+                dy = target.y - soldier.y
+                if distance > 0:
+                    soldier.facing_x = dx / distance
+                    soldier.facing_y = dy / distance
+
+                if distance > soldier.attack_range and distance > 0:
+                    soldier.x += soldier.facing_x * step
+                    soldier.y += soldier.facing_y * step
+                elif now - soldier.last_attack_time >= soldier.attack_cooldown:
+                    target.take_damage(int(soldier.attack_damage * damage_multiplier))
+                    soldier.last_attack_time = now
+                    soldier.attack_anim_time = 0.15
+                    if not target.alive:
+                        self.add_kill_reward(target)
+            else:
+                dx = soldier.home_x - soldier.x
+                dy = soldier.home_y - soldier.y
+                dist_home = math.hypot(dx, dy)
+                if dist_home > 2 and dist_home > 0:
+                    soldier.facing_x = dx / dist_home
+                    soldier.facing_y = dy / dist_home
+                    soldier.x += soldier.facing_x * step
+                    soldier.y += soldier.facing_y * step
+
+            if not soldier.alive:
+                soldier.owner_post.respawn_timer = max(soldier.owner_post.respawn_timer, 5.0)
+
+    def update_archer_posts(self, now: float, damage_multiplier: float):
         for post in self.posts:
             if post.tower_type != TowerType.ARCHER_POST:
                 continue
             target = post.find_target(self.enemies)
             if target:
-                projectile = post.shoot(target, current_time, damage_multiplier)
+                projectile = post.shoot(target, now, damage_multiplier)
                 if projectile:
                     self.projectiles.append(projectile)
 
-        self.update_soldier_barracks(dt, current_time, damage_multiplier)
-
+    def update_projectiles(self):
         for projectile in self.projectiles[:]:
             if not projectile.active:
                 self.projectiles.remove(projectile)
@@ -693,6 +764,27 @@ class Game:
                         self.add_kill_reward(enemy)
                     break
 
+    def update_game(self, dt: float):
+        now = pygame.time.get_ticks() / 1000.0
+
+        self.update_hero_state(dt)
+
+        if self.hero.alive:
+            self.hero_move(dt)
+            self.hero_slash(now)
+            self.hero_rally(now)
+            self.hero_escape(now)
+            self.hero_basic_attack(now)
+
+        self.update_enemies(dt, now)
+
+        rally_active = now <= self.hero.rally_until
+        damage_multiplier = self.hero.rally_multiplier if rally_active else 1.0
+
+        self.update_archer_posts(now, damage_multiplier)
+        self.update_soldier_barracks(dt, now, damage_multiplier)
+        self.update_projectiles()
+
         if self.state == GameState.PLAYING:
             all_done = all(not enemy.alive or enemy.reached_end for enemy in self.enemies)
             if all_done and len(self.enemies) > 0:
@@ -705,6 +797,11 @@ class Game:
                 else:
                     self.state = GameState.BETWEEN_WAVES
                     self.status_message = f"Wave {self.wave_number} complete."
+
+    def draw_range_overlay(self, center_x: int, center_y: int, range_tiles: int, color):
+        range_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        pygame.draw.circle(range_surface, (*color, 45), (center_x, center_y), range_tiles * TILE_SIZE)
+        self.screen.blit(range_surface, (0, 0))
 
     def draw_grid(self):
         for x in range(GRID_WIDTH):
@@ -720,17 +817,36 @@ class Game:
                 stats = TOWER_TYPES[self.selected_tower_type]
                 affordable = self.debug_infinite_gold or self.gold >= stats.cost
                 color = DARK_GREEN if affordable else RED
-                surface = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                pygame.draw.rect(surface, (*color, 100), (0, 0, TILE_SIZE, TILE_SIZE))
-                self.screen.blit(surface, (grid_x * TILE_SIZE, grid_y * TILE_SIZE))
 
-        pygame.draw.circle(self.screen, YELLOW, (int(self.hero.x), int(self.hero.y)), 10)
-        pygame.draw.circle(self.screen, BLACK, (int(self.hero.x), int(self.hero.y)), 10, 2)
+                preview = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                pygame.draw.rect(preview, (*color, 100), (0, 0, TILE_SIZE, TILE_SIZE))
+                self.screen.blit(preview, (grid_x * TILE_SIZE, grid_y * TILE_SIZE))
 
-        if self.hero.attack_anim_time > 0:
-            tip_x = self.hero.x + self.hero.attack_dx * 18
-            tip_y = self.hero.y + self.hero.attack_dy * 18
-            pygame.draw.line(self.screen, ORANGE, (int(self.hero.x), int(self.hero.y)), (int(tip_x), int(tip_y)), 4)
+                center_x = grid_x * TILE_SIZE + TILE_SIZE // 2
+                center_y = grid_y * TILE_SIZE + TILE_SIZE // 2
+                self.draw_range_overlay(center_x, center_y, stats.range, stats.color)
+
+        if self.selected_post:
+            cx, cy = self.selected_post.get_screen_pos()
+            self.draw_range_overlay(cx, cy, self.selected_post.stats.range, self.selected_post.stats.color)
+
+        if self.hero.alive:
+            pygame.draw.circle(self.screen, YELLOW, (int(self.hero.x), int(self.hero.y)), 10)
+            pygame.draw.circle(self.screen, BLACK, (int(self.hero.x), int(self.hero.y)), 10, 2)
+            face_tip_x = self.hero.x + self.hero.facing_x * 10
+            face_tip_y = self.hero.y + self.hero.facing_y * 10
+            pygame.draw.line(self.screen, BLACK, (int(self.hero.x), int(self.hero.y)), (int(face_tip_x), int(face_tip_y)), 2)
+
+            bar_w = 22
+            pygame.draw.rect(self.screen, BLACK, (self.hero.x - bar_w // 2, self.hero.y - 18, bar_w, 4))
+            hp_w = int((self.hero.health / self.hero.max_health) * bar_w)
+            if hp_w > 0:
+                pygame.draw.rect(self.screen, GREEN, (self.hero.x - bar_w // 2, self.hero.y - 18, hp_w, 4))
+
+            if self.hero.attack_anim_time > 0:
+                tip_x = self.hero.x + self.hero.facing_x * 18
+                tip_y = self.hero.y + self.hero.facing_y * 18
+                pygame.draw.line(self.screen, ORANGE, (int(self.hero.x), int(self.hero.y)), (int(tip_x), int(tip_y)), 4)
 
     def draw_ui(self):
         ui_x = GRID_WIDTH * TILE_SIZE + 10
@@ -756,17 +872,21 @@ class Game:
         rally_state = "UP" if pygame.time.get_ticks() / 1000.0 <= self.hero.rally_until else "-"
         escape_state = "READY" if self.hero.escape_charges > 0 else "-"
 
-        self.screen.blit(self.small_font.render("Hero: Commander", True, BLACK), (ui_x, ui_y))
+        hero_hp = f"{max(0, int(self.hero.health))}/{self.hero.max_health}" if self.hero.alive else "DEAD"
+        self.screen.blit(self.small_font.render(f"Hero HP: {hero_hp}", True, BLACK), (ui_x, ui_y))
+        ui_y += 20
+        self.screen.blit(self.small_font.render(f"Hero Respawn: {self.hero.respawn_timer:.1f}s", True, BLACK), (ui_x, ui_y))
         ui_y += 22
+
         self.screen.blit(self.small_font.render(f"Slash CD: {slash_cd:.1f}s", True, BLACK), (ui_x, ui_y))
         ui_y += 19
         self.screen.blit(self.small_font.render(f"Rally CD: {rally_cd:.1f}s ({rally_state})", True, BLACK), (ui_x, ui_y))
         ui_y += 19
         self.screen.blit(self.small_font.render(f"Escape CD: {escape_cd:.1f}s ({escape_state})", True, BLACK), (ui_x, ui_y))
-        ui_y += 28
+        ui_y += 22
 
         self.screen.blit(self.small_font.render("Deploy Army Posts:", True, BLACK), (ui_x, ui_y))
-        ui_y += 24
+        ui_y += 22
 
         self.tower_buttons = {}
         for tower_type in TowerType:
@@ -782,7 +902,7 @@ class Game:
 
             self.screen.blit(self.small_font.render(stats.name, True, BLACK), (ui_x + 34, ui_y + 6))
             self.screen.blit(self.small_font.render(f"Cost: {stats.cost}", True, BLACK), (ui_x + 34, ui_y + 29))
-            self.screen.blit(self.small_font.render(f"Power: {stats.damage}", True, BLACK), (ui_x + 34, ui_y + 51))
+            self.screen.blit(self.small_font.render(f"Range: {stats.range}", True, BLACK), (ui_x + 34, ui_y + 51))
             pygame.draw.circle(self.screen, stats.color, (ui_x + 14, ui_y + 38), 9)
 
             self.tower_buttons[tower_type] = button_rect
@@ -797,7 +917,7 @@ class Game:
         else:
             self.start_wave_button = None
 
-        msg = self.small_font.render(self.status_message[:38], True, BLACK)
+        msg = self.small_font.render(self.status_message[:40], True, BLACK)
         self.screen.blit(msg, (ui_x, SCREEN_HEIGHT - 28))
 
     def draw_game_over(self):
@@ -815,6 +935,14 @@ class Game:
         self.screen.blit(self.small_font.render(f"Army XP Earned: {self.army_xp}", True, WHITE), (SCREEN_WIDTH // 2 - 95, SCREEN_HEIGHT // 2 + 2))
         self.screen.blit(self.small_font.render("Press R to restart or Q to quit", True, WHITE), (SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 + 35))
 
+    def draw_post_overlays(self):
+        for post in self.posts:
+            if post.tower_type == TowerType.SOLDIER_BARRACKS and post.respawn_timer > 0:
+                x = post.grid_x * TILE_SIZE + 3
+                y = post.grid_y * TILE_SIZE - 12
+                text = self.small_font.render(f"{post.respawn_timer:.1f}", True, YELLOW)
+                self.screen.blit(text, (x, y))
+
     def sell_post_at(self, grid_x: int, grid_y: int):
         post = self.get_post_at(grid_x, grid_y)
         if not post:
@@ -826,38 +954,55 @@ class Game:
         refund = int(post.stats.cost * SELL_RATIO)
         if not self.debug_infinite_gold:
             self.gold += refund
-        self.status_message = f"Sold {post.stats.name} for {refund}."
 
-    def handle_click(self, pos):
+        self.status_message = f"Sold {post.stats.name} for {refund}."
+        if self.selected_post == post:
+            self.selected_post = None
+
+    def handle_left_click(self, pos):
         mouse_x, mouse_y = pos
 
         for tower_type, button_rect in self.tower_buttons.items():
             if button_rect.collidepoint(pos):
                 self.selected_tower_type = tower_type
+                self.selected_post = None
                 self.status_message = f"Selected {TOWER_TYPES[tower_type].name}."
                 return
 
-        if self.state == GameState.BETWEEN_WAVES and self.start_wave_button:
-            if self.start_wave_button.collidepoint(pos):
-                self.spawn_wave()
-                return
+        if self.state == GameState.BETWEEN_WAVES and self.start_wave_button and self.start_wave_button.collidepoint(pos):
+            self.spawn_wave()
+            return
 
-        if self.selected_tower_type and mouse_x < GRID_WIDTH * TILE_SIZE:
-            grid_x = mouse_x // TILE_SIZE
-            grid_y = mouse_y // TILE_SIZE
-            if self.can_place_tower(grid_x, grid_y):
-                stats = TOWER_TYPES[self.selected_tower_type]
-                if self.spend_gold(stats.cost):
-                    self.posts.append(ArmyPost(grid_x, grid_y, self.selected_tower_type))
-                    self.status_message = f"Deployed {stats.name}."
-                else:
-                    self.status_message = "Not enough gold."
+        if mouse_x >= GRID_WIDTH * TILE_SIZE:
+            return
+
+        grid_x = mouse_x // TILE_SIZE
+        grid_y = mouse_y // TILE_SIZE
+
+        existing = self.get_post_at(grid_x, grid_y)
+        if existing:
+            self.selected_post = existing
+            self.selected_tower_type = None
+            return
+
+        if self.selected_tower_type and self.can_place_tower(grid_x, grid_y):
+            stats = TOWER_TYPES[self.selected_tower_type]
+            if self.spend_gold(stats.cost):
+                post = ArmyPost(grid_x, grid_y, self.selected_tower_type)
+                self.posts.append(post)
+                self.selected_post = post
+                self.status_message = f"Deployed {stats.name}."
+            else:
+                self.status_message = "Not enough gold."
 
     def handle_right_click(self, pos):
         mouse_x, mouse_y = pos
         if mouse_x >= GRID_WIDTH * TILE_SIZE:
             return
         self.sell_post_at(mouse_x // TILE_SIZE, mouse_y // TILE_SIZE)
+
+    def handle_click(self, pos):
+        self.handle_left_click(pos)
 
     def handle_mouse_motion(self, pos):
         mouse_x, mouse_y = pos
@@ -877,6 +1022,7 @@ class Game:
         self.enemies.clear()
         self.projectiles.clear()
         self.selected_tower_type = None
+        self.selected_post = None
         self.debug_infinite_gold = False
         self.status_message = "Deploy Army Posts. Right-click to sell."
         self.hero = Hero(self.path)
@@ -890,7 +1036,7 @@ class Game:
                     self.running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
-                        self.handle_click(event.pos)
+                        self.handle_left_click(event.pos)
                     elif event.button == 3:
                         self.handle_right_click(event.pos)
                 elif event.type == pygame.MOUSEMOTION:
@@ -902,7 +1048,8 @@ class Game:
                         self.reset_game()
                     elif event.key == pygame.K_d:
                         self.debug_infinite_gold = not self.debug_infinite_gold
-                        self.status_message = f"Debug gold {'enabled' if self.debug_infinite_gold else 'disabled'}."
+                        mode = "enabled" if self.debug_infinite_gold else "disabled"
+                        self.status_message = f"Debug gold {mode}."
 
             if self.state == GameState.PLAYING:
                 self.update_game(dt)
@@ -923,6 +1070,7 @@ class Game:
             for projectile in self.projectiles:
                 projectile.draw(self.screen)
 
+            self.draw_post_overlays()
             self.draw_ui()
 
             if self.state == GameState.GAME_OVER:
