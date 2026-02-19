@@ -71,12 +71,13 @@ let grassPattern = null;
 let gravelPattern = null;
 let unitSprites = null;
 let postSprites = null;
+let boardTexture = null;
 
-const TEXTURE_RES_2K = 4096;
+const TEXTURE_RES_2K = 2048;
 const UNIT_SPRITE_BASE_SIZE = 48;
-const UNIT_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
+const UNIT_SPRITE_TEXTURE_SIZE = 1024;
 const POST_SPRITE_BASE_SIZE = 64;
-const POST_SPRITE_TEXTURE_SIZE = TEXTURE_RES_2K;
+const POST_SPRITE_TEXTURE_SIZE = 1024;
 
 function setHighQualitySmoothing(targetCtx) {
   targetCtx.imageSmoothingEnabled = true;
@@ -123,47 +124,37 @@ function createGrassPattern() {
   setHighQualitySmoothing(tctx);
   const s = TEXTURE_RES_2K;
 
-  const baseGrad = tctx.createRadialGradient(s * 0.42, s * 0.35, s * 0.12, s * 0.5, s * 0.5, s * 0.95);
-  baseGrad.addColorStop(0, '#3f7f3a');
-  baseGrad.addColorStop(0.45, '#2f682c');
-  baseGrad.addColorStop(1, '#1b3f1a');
+  const baseGrad = tctx.createLinearGradient(0, 0, s, s);
+  baseGrad.addColorStop(0, '#5d9d3f');
+  baseGrad.addColorStop(0.52, '#4d8a33');
+  baseGrad.addColorStop(1, '#3e7428');
   tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 11000; i++) {
-    const n = Math.sin(i * 12.9898) * 43758.5453;
-    const r = n - Math.floor(n);
-    const m = Math.sin((i + 17) * 78.233) * 96321.517;
-    const r2 = m - Math.floor(m);
-    const x = r * s;
-    const y = r2 * s;
-
-    tctx.strokeStyle = i % 3 === 0 ? 'rgba(84,146,74,0.28)' : i % 3 === 1 ? 'rgba(38,87,33,0.24)' : 'rgba(56,114,48,0.22)';
-    tctx.lineWidth = 0.8 + (r * 1.3);
-    tctx.beginPath();
-    tctx.moveTo(x, y);
-    tctx.quadraticCurveTo(x + 2 + r * 10, y - 7 - r2 * 8, x + 4 + r2 * 8, y - 14 - r * 8);
-    tctx.stroke();
+  for (let i = 0; i < 6000; i++) {
+    const x = ((i * 37) + (i % 43) * 29) % s;
+    const y = ((i * 61) + (i % 31) * 17) % s;
+    const w = 2 + (i % 4);
+    const h = 2 + ((i + 2) % 4);
+    const shade = i % 5;
+    tctx.fillStyle = shade < 2 ? '#6fb34d' : shade < 4 ? '#4f8f34' : '#3f7a2c';
+    tctx.fillRect(x, y, w, h);
   }
 
-  for (let i = 0; i < 260; i++) {
-    const n = Math.sin((i + 31) * 19.773) * 18347.113;
-    const r = n - Math.floor(n);
-    const m = Math.sin((i + 47) * 31.197) * 55427.817;
-    const r2 = m - Math.floor(m);
-    const x = r * s;
-    const y = r2 * s;
-    const radius = 24 + r * 52;
+  for (let i = 0; i < 140; i++) {
+    const x = ((i * 97) + (i % 17) * 71) % s;
+    const y = ((i * 83) + (i % 29) * 67) % s;
+    const radius = 70 + (i % 11) * 12;
     const patch = tctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
-    patch.addColorStop(0, 'rgba(106,153,86,0.12)');
+    patch.addColorStop(0, 'rgba(154,191,101,0.18)');
     patch.addColorStop(1, 'rgba(0,0,0,0)');
     tctx.fillStyle = patch;
     tctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
 
-  const vignette = tctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.22, s * 0.5, s * 0.5, s * 0.94);
+  const vignette = tctx.createRadialGradient(s * 0.5, s * 0.5, s * 0.28, s * 0.5, s * 0.5, s * 0.95);
   vignette.addColorStop(0, 'rgba(255,255,255,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.24)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.16)');
   tctx.globalAlpha = 1;
   tctx.fillStyle = vignette;
   tctx.fillRect(0, 0, s, s);
@@ -182,42 +173,36 @@ function createGravelPattern() {
   const s = TEXTURE_RES_2K;
 
   const baseGrad = tctx.createLinearGradient(0, 0, s, s);
-  baseGrad.addColorStop(0, '#7a756b');
-  baseGrad.addColorStop(0.45, '#666157');
-  baseGrad.addColorStop(1, '#4b4740');
+  baseGrad.addColorStop(0, '#e2d38f');
+  baseGrad.addColorStop(0.52, '#d2c07b');
+  baseGrad.addColorStop(1, '#b9a966');
   tctx.fillStyle = baseGrad;
   tctx.fillRect(0, 0, s, s);
 
-  for (let i = 0; i < 6800; i++) {
-    const n = Math.sin((i + 7) * 17.831) * 51673.229;
-    const r = n - Math.floor(n);
-    const m = Math.sin((i + 23) * 33.917) * 21787.412;
-    const r2 = m - Math.floor(m);
-    const x = r * s;
-    const y = r2 * s;
-    const rw = 2 + r * 6;
-    const rh = 1 + r2 * 4;
-
-    tctx.fillStyle = i % 3 === 0 ? 'rgba(166,160,145,0.36)' : i % 3 === 1 ? 'rgba(117,111,99,0.34)' : 'rgba(83,78,69,0.30)';
-    tctx.beginPath();
-    tctx.ellipse(x, y, rw, rh, r * Math.PI, 0, Math.PI * 2);
-    tctx.fill();
+  for (let i = 0; i < 4800; i++) {
+    const x = ((i * 47) + (i % 67) * 19) % s;
+    const y = ((i * 71) + (i % 43) * 23) % s;
+    const rw = 1 + (i % 4);
+    const rh = 1 + ((i + 2) % 3);
+    const shade = i % 5;
+    tctx.fillStyle = shade < 2 ? '#f0e3a7' : shade < 4 ? '#c8b574' : '#aa995f';
+    tctx.fillRect(x, y, rw, rh);
   }
 
-  tctx.globalAlpha = 0.3;
-  tctx.strokeStyle = '#423e37';
-  tctx.lineWidth = 1.1;
-  for (let i = 0; i < 2600; i++) {
-    const x = ((i * 21 + 17) % s) + 0.5;
-    const y = ((i * 37 + 11) % s) + 0.5;
+  tctx.globalAlpha = 0.18;
+  tctx.strokeStyle = '#9b8b55';
+  tctx.lineWidth = 1;
+  for (let i = 0; i < 1200; i++) {
+    const x = ((i * 53) + (i % 13) * 37) % s;
+    const y = ((i * 89) + (i % 17) * 11) % s;
     tctx.beginPath();
     tctx.moveTo(x, y);
-    tctx.lineTo(x + 7 + (i % 5), y + ((i % 7) - 3));
+    tctx.lineTo(x + 6 + (i % 4), y + ((i % 3) - 1));
     tctx.stroke();
   }
 
-  const dustGrad = tctx.createRadialGradient(s * 0.48, s * 0.38, s * 0.12, s * 0.48, s * 0.38, s * 0.92);
-  dustGrad.addColorStop(0, 'rgba(212,204,184,0.20)');
+  const dustGrad = tctx.createRadialGradient(s * 0.42, s * 0.42, s * 0.14, s * 0.42, s * 0.42, s * 0.94);
+  dustGrad.addColorStop(0, 'rgba(255,246,196,0.20)');
   dustGrad.addColorStop(1, 'rgba(0,0,0,0)');
   tctx.globalAlpha = 1;
   tctx.fillStyle = dustGrad;
@@ -231,6 +216,40 @@ function createGravelPattern() {
 function ensureTerrainPatterns() {
   if (!grassPattern) grassPattern = createGrassPattern();
   if (!gravelPattern) gravelPattern = createGravelPattern();
+}
+
+function createBoardTexture() {
+  ensureTerrainPatterns();
+
+  const tex = document.createElement('canvas');
+  tex.width = BOARD_PX;
+  tex.height = BOARD_PX;
+  const bctx = tex.getContext('2d');
+  setHighQualitySmoothing(bctx);
+
+  bctx.fillStyle = grassPattern || '#4f8f34';
+  bctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+  bctx.fillStyle = gravelPattern || '#cdb874';
+  for (const [px, py] of pathCells) {
+    const tx = px * TILE_SIZE;
+    const ty = py * TILE_SIZE;
+    bctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+
+    const marker = ((px * 17 + py * 31) % 11);
+    if (marker < 3) {
+      bctx.globalAlpha = 0.18;
+      bctx.fillStyle = marker === 0 ? '#f2e4ac' : '#9b8b55';
+      bctx.fillRect(tx + 4 + marker * 3, ty + 6, 8, 3);
+      bctx.globalAlpha = 1;
+    }
+  }
+
+  return tex;
+}
+
+function ensureBoardTexture() {
+  if (!boardTexture) boardTexture = createBoardTexture();
 }
 
 function createPostSprite(drawFn) {
@@ -249,131 +268,104 @@ function createPostSprites() {
   const archer = createPostSprite((g) => {
     g.clearRect(0, 0, 64, 64);
 
-    g.fillStyle = '#3a2a1a';
-    g.fillRect(14, 42, 36, 14);
+    const baseGrad = g.createLinearGradient(14, 17, 50, 50);
+    baseGrad.addColorStop(0, '#7c8ea2');
+    baseGrad.addColorStop(1, '#536274');
+    g.fillStyle = baseGrad;
+    g.beginPath();
+    g.moveTo(15, 22);
+    g.lineTo(23, 14);
+    g.lineTo(41, 14);
+    g.lineTo(49, 22);
+    g.lineTo(49, 46);
+    g.lineTo(15, 46);
+    g.closePath();
+    g.fill();
 
-    const timberGrad = g.createLinearGradient(12, 24, 52, 44);
-    timberGrad.addColorStop(0, '#6a5138');
-    timberGrad.addColorStop(1, '#3f2f21');
-    g.fillStyle = timberGrad;
-    g.fillRect(12, 24, 40, 20);
-    g.strokeStyle = '#1a120b';
-    g.lineWidth = 2;
-    g.strokeRect(12, 24, 40, 20);
-
-    g.fillStyle = '#7d5a3a';
+    g.fillStyle = '#46576a';
     for (let i = 0; i < 4; i++) {
-      g.fillRect(14 + i * 10, 26, 6, 16);
+      g.fillRect(18 + i * 8, 24, 6, 8);
     }
 
-    g.globalAlpha = 0.26;
-    g.fillStyle = '#d2bc90';
-    for (let i = 0; i < 22; i++) {
-      const x = (i * 9 + 3) % 34;
-      const y = (i * 7 + 5) % 16;
-      g.fillRect(14 + x, 26 + y, 1, 1);
-    }
-    g.globalAlpha = 1;
+    g.fillStyle = '#d8e1ec';
+    g.fillRect(28, 28, 8, 12);
+    g.fillStyle = '#9db2c8';
+    g.fillRect(29, 29, 6, 11);
 
-    g.fillStyle = '#4a3625';
-    g.fillRect(17, 16, 6, 8);
-    g.fillRect(41, 16, 6, 8);
+    g.fillStyle = '#5c3f2a';
+    g.fillRect(12, 45, 40, 8);
 
-    g.fillStyle = '#302010';
+    g.fillStyle = '#2f6fb1';
     g.beginPath();
-    g.moveTo(10, 24);
-    g.lineTo(32, 8);
-    g.lineTo(54, 24);
+    g.moveTo(28, 14);
+    g.lineTo(32, 7);
+    g.lineTo(36, 14);
     g.closePath();
     g.fill();
 
-    g.fillStyle = '#8b6b45';
-    g.beginPath();
-    g.moveTo(13, 24);
-    g.lineTo(32, 11);
-    g.lineTo(51, 24);
-    g.closePath();
-    g.fill();
+    g.fillStyle = '#1f2f45';
+    g.fillRect(31, 10, 2, 10);
 
-    g.fillStyle = '#d6c48f';
-    g.fillRect(30, 13, 4, 5);
-    g.fillStyle = '#111827';
-    g.fillRect(31, 15, 2, 2);
-
-    g.strokeStyle = '#2b1d10';
+    g.strokeStyle = '#223142';
     g.lineWidth = 2;
+    g.strokeRect(16, 22, 32, 24);
+    g.strokeStyle = '#1a2431';
     g.beginPath();
-    g.moveTo(8, 38);
-    g.lineTo(56, 38);
+    g.moveTo(15, 22);
+    g.lineTo(23, 14);
+    g.lineTo(41, 14);
+    g.lineTo(49, 22);
     g.stroke();
-
-    g.globalAlpha = 0.22;
-    g.fillStyle = '#000000';
-    g.fillRect(12, 24, 40, 2);
-    g.globalAlpha = 1;
   });
 
   const soldier = createPostSprite((g) => {
     g.clearRect(0, 0, 64, 64);
 
-    g.fillStyle = '#2f3138';
-    g.fillRect(10, 40, 44, 16);
+    g.fillStyle = '#7f6f4e';
+    g.fillRect(10, 46, 44, 8);
 
-    const stoneGrad = g.createLinearGradient(10, 18, 54, 42);
-    stoneGrad.addColorStop(0, '#636a76');
-    stoneGrad.addColorStop(1, '#3e434d');
+    const stoneGrad = g.createLinearGradient(12, 14, 52, 44);
+    stoneGrad.addColorStop(0, '#c8c9c7');
+    stoneGrad.addColorStop(1, '#8e908f');
     g.fillStyle = stoneGrad;
-    g.fillRect(10, 18, 44, 24);
-    g.strokeStyle = '#1a1d24';
-    g.lineWidth = 2;
-    g.strokeRect(10, 18, 44, 24);
+    g.fillRect(12, 20, 40, 26);
 
-    g.fillStyle = '#656b78';
+    g.fillStyle = '#dbdcd8';
     for (let i = 0; i < 5; i++) {
-      g.fillRect(12 + i * 8, 20, 6, 20);
+      g.fillRect(14 + i * 8, 22, 6, 10);
     }
 
-    g.globalAlpha = 0.22;
-    g.fillStyle = '#98a2b1';
-    for (let i = 0; i < 26; i++) {
-      const x = (i * 11 + 2) % 42;
-      const y = (i * 5 + 3) % 20;
-      g.fillRect(11 + x, 20 + y, 1, 1);
-    }
-    g.globalAlpha = 1;
+    g.fillStyle = '#7a6c58';
+    g.fillRect(26, 33, 12, 13);
+    g.fillStyle = '#3f3429';
+    g.fillRect(28, 35, 8, 11);
 
-    g.fillStyle = '#2a2d35';
-    g.fillRect(25, 28, 14, 14);
-    g.fillStyle = '#8892a1';
-    g.fillRect(28, 30, 8, 10);
-
-    g.fillStyle = '#7f1d1d';
+    g.fillStyle = '#b8c4d4';
     g.beginPath();
-    g.moveTo(18, 18);
-    g.lineTo(24, 10);
-    g.lineTo(30, 18);
+    g.moveTo(14, 20);
+    g.lineTo(20, 12);
+    g.lineTo(44, 12);
+    g.lineTo(50, 20);
     g.closePath();
     g.fill();
 
-    g.fillStyle = '#0f172a';
-    g.fillRect(21, 9, 2, 12);
-
-    g.fillStyle = '#7f1d1d';
+    g.fillStyle = '#7b1f1a';
     g.beginPath();
-    g.moveTo(36, 18);
-    g.lineTo(42, 10);
-    g.lineTo(48, 18);
+    g.moveTo(30, 12);
+    g.lineTo(33, 6);
+    g.lineTo(36, 12);
     g.closePath();
     g.fill();
+    g.fillStyle = '#202939';
+    g.fillRect(32, 8, 2, 10);
 
-    g.fillStyle = '#0f172a';
-    g.fillRect(39, 9, 2, 12);
-
-    g.strokeStyle = '#20242d';
+    g.strokeStyle = '#5b5d5f';
     g.lineWidth = 2;
+    g.strokeRect(12, 20, 40, 26);
+    g.strokeStyle = '#6e7173';
     g.beginPath();
-    g.moveTo(8, 36);
-    g.lineTo(56, 36);
+    g.moveTo(12, 32);
+    g.lineTo(52, 32);
     g.stroke();
   });
 
@@ -400,21 +392,24 @@ function createUnitSprites() {
   const drawKnight = (g, cfg) => {
     g.clearRect(0, 0, 48, 48);
 
-    g.globalAlpha = 0.35;
-    g.fillStyle = '#05070b';
+    g.globalAlpha = 0.28;
+    g.fillStyle = '#111419';
     g.beginPath();
-    g.ellipse(24, 39, 12, 5, 0, 0, Math.PI * 2);
+    g.ellipse(24, 39.5, 11, 4, 0, 0, Math.PI * 2);
     g.fill();
     g.globalAlpha = 1;
 
-    g.fillStyle = cfg.cape;
+    const capeGrad = g.createLinearGradient(24, 16, 24, 36);
+    capeGrad.addColorStop(0, cfg.capeHi || cfg.cape);
+    capeGrad.addColorStop(1, cfg.cape);
+    g.fillStyle = capeGrad;
     g.beginPath();
-    g.moveTo(24, 17);
-    g.lineTo(13, 31);
+    g.moveTo(24, 16);
+    g.lineTo(14, 30);
     g.lineTo(18, 37);
     g.lineTo(24, 33);
     g.lineTo(30, 37);
-    g.lineTo(35, 31);
+    g.lineTo(34, 30);
     g.closePath();
     g.fill();
 
@@ -425,9 +420,9 @@ function createUnitSprites() {
     g.fillRect(16, 39, 8, 2);
     g.fillRect(24, 39, 8, 2);
 
-    const torsoGrad = g.createLinearGradient(14, 16, 34, 34);
+    const torsoGrad = g.createLinearGradient(13, 15, 35, 36);
     torsoGrad.addColorStop(0, cfg.steelHi);
-    torsoGrad.addColorStop(0.52, cfg.steelMid);
+    torsoGrad.addColorStop(0.45, cfg.steelMid);
     torsoGrad.addColorStop(1, cfg.steelLow);
     g.fillStyle = torsoGrad;
     g.beginPath();
@@ -440,16 +435,16 @@ function createUnitSprites() {
     g.closePath();
     g.fill();
 
-    g.fillStyle = cfg.steelDark;
+    g.fillStyle = cfg.plate || cfg.steelDark;
     g.beginPath();
-    g.arc(16, 23, 4, 0, Math.PI * 2);
-    g.arc(32, 23, 4, 0, Math.PI * 2);
+    g.arc(16.5, 23, 4, 0, Math.PI * 2);
+    g.arc(31.5, 23, 4, 0, Math.PI * 2);
     g.fill();
 
     g.fillStyle = cfg.chain;
     g.fillRect(20, 27, 8, 9);
-    g.globalAlpha = 0.35;
-    g.fillStyle = '#d7dde5';
+    g.globalAlpha = 0.22;
+    g.fillStyle = '#d4dae3';
     for (let y = 28; y <= 34; y += 2) {
       g.fillRect(20, y, 8, 1);
     }
@@ -466,7 +461,7 @@ function createUnitSprites() {
     g.closePath();
     g.fill();
 
-    g.fillStyle = '#0a0e14';
+    g.fillStyle = '#10151d';
     g.fillRect(20, 13, 8, 2);
     g.fillStyle = cfg.visorGlow;
     g.fillRect(21, 13, 2, 1);
@@ -498,6 +493,11 @@ function createUnitSprites() {
       g.strokeStyle = cfg.shieldTrim;
       g.lineWidth = 1.6;
       g.stroke();
+
+      g.globalAlpha = 0.2;
+      g.fillStyle = '#ffffff';
+      g.fillRect(10, 23, 2, 10);
+      g.globalAlpha = 1;
     }
 
     if (cfg.weapon === 'sword') {
@@ -520,8 +520,8 @@ function createUnitSprites() {
       g.fill();
     }
 
-    g.strokeStyle = '#0b1018';
-    g.lineWidth = 1.2;
+    g.strokeStyle = '#1f2937';
+    g.lineWidth = 1.4;
     g.strokeRect(17, 33, 6, 8);
     g.strokeRect(25, 33, 6, 8);
     g.beginPath();
@@ -531,10 +531,10 @@ function createUnitSprites() {
     g.lineTo(34, 23);
     g.stroke();
 
-    g.globalAlpha = 0.2;
+    g.globalAlpha = 0.32;
     g.fillStyle = '#ffffff';
     g.beginPath();
-    g.ellipse(21, 18, 7, 3, -0.6, 0, Math.PI * 2);
+    g.ellipse(21, 18, 7, 2.7, -0.6, 0, Math.PI * 2);
     g.fill();
     g.globalAlpha = 1;
   };
@@ -545,9 +545,11 @@ function createUnitSprites() {
       steelMid: '#8791a1',
       steelLow: '#303a49',
       steelDark: '#232a37',
+      plate: '#2b3544',
       helm: '#b7beca',
       chain: '#566173',
       cape: '#4b0d13',
+      capeHi: '#6a1820',
       boots: '#1f232d',
       visorGlow: '#dfe6ef',
       plume: '#7d1017',
@@ -563,9 +565,11 @@ function createUnitSprites() {
       steelMid: '#76879c',
       steelLow: '#2c3646',
       steelDark: '#1d2737',
+      plate: '#253245',
       helm: '#9eaabc',
       chain: '#49586b',
       cape: '#18212d',
+      capeHi: '#233244',
       boots: '#1a1f2a',
       visorGlow: '#c8d3df',
       plume: null,
@@ -581,9 +585,11 @@ function createUnitSprites() {
       steelMid: '#726b5f',
       steelLow: '#312f2a',
       steelDark: '#26231f',
+      plate: '#322d26',
       helm: '#84786a',
       chain: '#4c4339',
       cape: '#33211a',
+      capeHi: '#4a2e23',
       boots: '#231c17',
       visorGlow: '#cdbda8',
       plume: null,
@@ -599,9 +605,11 @@ function createUnitSprites() {
       steelMid: '#7f5f4f',
       steelLow: '#3b2a25',
       steelDark: '#2f221d',
+      plate: '#3a2a22',
       helm: '#8f6d5d',
       chain: '#5e463b',
       cape: '#3d1411',
+      capeHi: '#5a221d',
       boots: '#281a17',
       visorGlow: '#d7b2a1',
       plume: '#5c1713',
@@ -617,9 +625,11 @@ function createUnitSprites() {
       steelMid: '#70688c',
       steelLow: '#30293f',
       steelDark: '#221d2f',
+      plate: '#2d2740',
       helm: '#8d82a8',
       chain: '#564f6f',
       cape: '#231c38',
+      capeHi: '#3a3054',
       boots: '#181423',
       visorGlow: '#cbc2e6',
       plume: null,
@@ -1491,36 +1501,8 @@ function drawRangeOverlay(centerX, centerY, rangeTiles, color) {
 }
 
 function drawGrid() {
-  ensureTerrainPatterns();
-
-  ctx.fillStyle = grassPattern || '#3f7f3a';
-  ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
-
-  ctx.fillStyle = gravelPattern || '#8a8a7a';
-  for (const [px, py] of pathCells) {
-    const tx = px * TILE_SIZE;
-    const ty = py * TILE_SIZE;
-    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-
-    const noiseA = Math.sin(px * 12.9898 + py * 78.233) * 43758.5453;
-    const noiseB = Math.sin(px * 23.173 + py * 31.947) * 96321.517;
-    const rA = noiseA - Math.floor(noiseA);
-    const rB = noiseB - Math.floor(noiseB);
-
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = rA > 0.5 ? '#4f4c45' : '#b4ad97';
-    ctx.fillRect(tx + 4 + rA * 10, ty + 5 + rB * 10, 5 + rA * 3, 2 + rB * 2);
-    ctx.globalAlpha = 1;
-
-    if (rB > 0.66) {
-      ctx.strokeStyle = 'rgba(60, 56, 49, 0.28)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(tx + 3, ty + TILE_SIZE * 0.55);
-      ctx.lineTo(tx + TILE_SIZE - 3, ty + TILE_SIZE * 0.48);
-      ctx.stroke();
-    }
-  }
+  ensureBoardTexture();
+  ctx.drawImage(boardTexture, 0, 0);
 }
 
 function drawHero() {
