@@ -17,8 +17,8 @@ const debugBtn = document.getElementById('debugBtn');
 const towerButtons = [...document.querySelectorAll('.tower-btn')];
 
 const TILE_SIZE = 30;
-const GRID_WIDTH = 20;
-const GRID_HEIGHT = 20;
+const GRID_WIDTH = 28;
+const GRID_HEIGHT = 28;
 const BOARD_PX = GRID_WIDTH * TILE_SIZE;
 const STARTING_GOLD = 220;
 const STARTING_LIVES = 20;
@@ -63,6 +63,8 @@ let previousTime = performance.now();
 let hoverGrid = null;
 let renderScaleX = 1;
 let renderScaleY = 1;
+let renderOffsetX = 0;
+let renderOffsetY = 0;
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -76,18 +78,21 @@ function resizeCanvasDisplayToViewport() {
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
 
-  renderScaleX = width / BOARD_PX;
-  renderScaleY = height / BOARD_PX;
+  const uniformScale = Math.min(width / BOARD_PX, height / BOARD_PX);
+  renderScaleX = uniformScale;
+  renderScaleY = uniformScale;
+  renderOffsetX = (width - BOARD_PX * uniformScale) / 2;
+  renderOffsetY = (height - BOARD_PX * uniformScale) / 2;
 }
 
 function createPath() {
   const result = [];
-  for (let y = 0; y < 5; y++) result.push([1, y]);
-  for (let x = 1; x < 10; x++) result.push([x, 5]);
-  for (let y = 5; y < 12; y++) result.push([10, y]);
-  for (let x = 10; x > 3; x--) result.push([x, 12]);
-  for (let y = 12; y < 18; y++) result.push([3, y]);
-  for (let x = 3; x < 20; x++) result.push([x, 18]);
+  for (let y = 0; y < 7; y++) result.push([2, y]);
+  for (let x = 2; x < 15; x++) result.push([x, 7]);
+  for (let y = 7; y < 17; y++) result.push([15, y]);
+  for (let x = 15; x > 5; x--) result.push([x, 17]);
+  for (let y = 17; y < 24; y++) result.push([5, y]);
+  for (let x = 5; x < GRID_WIDTH; x++) result.push([x, 24]);
   return result;
 }
 
@@ -1028,7 +1033,9 @@ function drawOverlayText() {
 function draw(now) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.setTransform(renderScaleX, 0, 0, renderScaleY, 0, 0);
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(renderScaleX, 0, 0, renderScaleY, renderOffsetX, renderOffsetY);
 
   drawGrid();
   drawRangeSelection();
@@ -1043,11 +1050,11 @@ function draw(now) {
 
 function getBoardCoordinatesFromEvent(event) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = BOARD_PX / rect.width;
-  const scaleY = BOARD_PX / rect.height;
+  const pixelX = event.clientX - rect.left - renderOffsetX;
+  const pixelY = event.clientY - rect.top - renderOffsetY;
 
-  const boardX = (event.clientX - rect.left) * scaleX;
-  const boardY = (event.clientY - rect.top) * scaleY;
+  const boardX = pixelX / renderScaleX;
+  const boardY = pixelY / renderScaleY;
 
   return {
     boardX,
