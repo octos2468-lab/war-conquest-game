@@ -261,6 +261,16 @@ function selectPostType(type) {
   });
 }
 
+function cancelUiSelection(showMessage = true) {
+  const hadSelection = Boolean(state.selectedPostType || state.selectedPlacedPost);
+  if (!hadSelection) return false;
+
+  selectPostType(null);
+  state.selectedPlacedPost = null;
+  if (showMessage) setMessage('Selection cancelled.');
+  return true;
+}
+
 function canPlacePost(gridX, gridY) {
   if (gridX < 0 || gridX >= GRID_WIDTH || gridY < 0 || gridY >= GRID_HEIGHT) return false;
   if (pathSet.has(`${gridX},${gridY}`)) return false;
@@ -1235,10 +1245,7 @@ canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault();
   if (state.phase === 'gameover' || state.phase === 'victory') return;
 
-  if (state.selectedPostType) {
-    selectPostType(null);
-    state.selectedPlacedPost = null;
-    setMessage('Placement cancelled.');
+  if (cancelUiSelection(true)) {
     return;
   }
 
@@ -1246,6 +1253,15 @@ canvas.addEventListener('contextmenu', (event) => {
   const gridX = pos.gridX;
   const gridY = pos.gridY;
   sellPost(gridX, gridY);
+});
+
+window.addEventListener('contextmenu', (event) => {
+  if (event.target === canvas) return;
+  if (state.phase === 'gameover' || state.phase === 'victory') return;
+
+  if (cancelUiSelection(true)) {
+    event.preventDefault();
+  }
 });
 
 towerButtons.forEach((btn) => {
