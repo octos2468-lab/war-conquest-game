@@ -70,6 +70,7 @@ let renderOffsetY = 0;
 let grassPattern = null;
 let gravelPattern = null;
 let unitSprites = null;
+let postSprites = null;
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -145,6 +146,125 @@ function createGravelPattern() {
 function ensureTerrainPatterns() {
   if (!grassPattern) grassPattern = createGrassPattern();
   if (!gravelPattern) gravelPattern = createGravelPattern();
+}
+
+function createPostSprite(drawFn) {
+  const tex = document.createElement('canvas');
+  tex.width = 64;
+  tex.height = 64;
+  const tctx = tex.getContext('2d');
+  drawFn(tctx);
+  return tex;
+}
+
+function createPostSprites() {
+  const archer = createPostSprite((g) => {
+    g.clearRect(0, 0, 64, 64);
+
+    g.fillStyle = '#3a2a1a';
+    g.fillRect(14, 42, 36, 14);
+
+    g.fillStyle = '#5c4631';
+    g.fillRect(12, 24, 40, 20);
+    g.strokeStyle = '#1a120b';
+    g.lineWidth = 2;
+    g.strokeRect(12, 24, 40, 20);
+
+    g.fillStyle = '#7d5a3a';
+    for (let i = 0; i < 4; i++) {
+      g.fillRect(14 + i * 10, 26, 6, 16);
+    }
+
+    g.fillStyle = '#4a3625';
+    g.fillRect(17, 16, 6, 8);
+    g.fillRect(41, 16, 6, 8);
+
+    g.fillStyle = '#302010';
+    g.beginPath();
+    g.moveTo(10, 24);
+    g.lineTo(32, 8);
+    g.lineTo(54, 24);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#8b6b45';
+    g.beginPath();
+    g.moveTo(13, 24);
+    g.lineTo(32, 11);
+    g.lineTo(51, 24);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#d6c48f';
+    g.fillRect(30, 13, 4, 5);
+    g.fillStyle = '#111827';
+    g.fillRect(31, 15, 2, 2);
+
+    g.strokeStyle = '#2b1d10';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(8, 38);
+    g.lineTo(56, 38);
+    g.stroke();
+  });
+
+  const soldier = createPostSprite((g) => {
+    g.clearRect(0, 0, 64, 64);
+
+    g.fillStyle = '#2f3138';
+    g.fillRect(10, 40, 44, 16);
+
+    g.fillStyle = '#4d525c';
+    g.fillRect(10, 18, 44, 24);
+    g.strokeStyle = '#1a1d24';
+    g.lineWidth = 2;
+    g.strokeRect(10, 18, 44, 24);
+
+    g.fillStyle = '#656b78';
+    for (let i = 0; i < 5; i++) {
+      g.fillRect(12 + i * 8, 20, 6, 20);
+    }
+
+    g.fillStyle = '#2a2d35';
+    g.fillRect(25, 28, 14, 14);
+    g.fillStyle = '#8892a1';
+    g.fillRect(28, 30, 8, 10);
+
+    g.fillStyle = '#7f1d1d';
+    g.beginPath();
+    g.moveTo(18, 18);
+    g.lineTo(24, 10);
+    g.lineTo(30, 18);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#0f172a';
+    g.fillRect(21, 9, 2, 12);
+
+    g.fillStyle = '#7f1d1d';
+    g.beginPath();
+    g.moveTo(36, 18);
+    g.lineTo(42, 10);
+    g.lineTo(48, 18);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#0f172a';
+    g.fillRect(39, 9, 2, 12);
+
+    g.strokeStyle = '#20242d';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(8, 36);
+    g.lineTo(56, 36);
+    g.stroke();
+  });
+
+  return { archer, soldier };
+}
+
+function ensurePostSprites() {
+  if (!postSprites) postSprites = createPostSprites();
 }
 
 function createUnitSprite(drawFn) {
@@ -1302,17 +1422,15 @@ function drawHero() {
 }
 
 function drawPosts(now) {
+  ensurePostSprites();
   const rallyActive = state.hero.rallyActiveUntil > now;
 
   for (const post of state.posts) {
-    const stats = postStats[post.type];
     const x = post.gridX * TILE_SIZE;
     const y = post.gridY * TILE_SIZE;
 
-    ctx.fillStyle = stats.color;
-    ctx.fillRect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
-    ctx.strokeStyle = '#111827';
-    ctx.strokeRect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
+    const sprite = post.type === 'soldier' ? postSprites.soldier : postSprites.archer;
+    ctx.drawImage(sprite, x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
 
     if (rallyActive) {
       ctx.fillStyle = '#facc15';
