@@ -396,21 +396,25 @@ function ensureUnitSprites() {
   if (!unitSprites) unitSprites = createUnitSprites();
 }
 
+const UNIT_RENDER_SCALE = 3;
+const UNIT_BASE_RENDER_MULT = 2.35;
+
 function drawFacingSprite(sprite, x, y, radius, facingX, facingY) {
   ensureUnitSprites();
   const angle = Math.atan2(facingY, facingX);
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + Math.PI / 2);
-  const size = radius * 2.35;
+  const size = radius * UNIT_BASE_RENDER_MULT * UNIT_RENDER_SCALE;
   ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 
 function drawUnitHealthBar(x, y, radius, health, maxHealth) {
-  const barW = Math.max(16, radius * 2);
+  const renderRadius = (radius * UNIT_BASE_RENDER_MULT * UNIT_RENDER_SCALE) / 2;
+  const barW = Math.max(22, renderRadius * 1.05);
   const bx = x - barW / 2;
-  const by = y - radius - 10;
+  const by = y - renderRadius - 10;
   ctx.fillStyle = '#111827';
   ctx.fillRect(bx, by, barW, 4);
   const hpW = Math.max(0, (health / maxHealth) * barW);
