@@ -67,6 +67,8 @@ let renderScaleX = 1;
 let renderScaleY = 1;
 let renderOffsetX = 0;
 let renderOffsetY = 0;
+let grassPattern = null;
+let gravelPattern = null;
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -96,6 +98,52 @@ function createPath() {
   for (let y = 17; y < 24; y++) result.push([5, y]);
   for (let x = 5; x < GRID_WIDTH; x++) result.push([x, 24]);
   return result;
+}
+
+function createGrassPattern() {
+  const tex = document.createElement('canvas');
+  tex.width = 64;
+  tex.height = 64;
+  const tctx = tex.getContext('2d');
+
+  tctx.fillStyle = '#3f7f3a';
+  tctx.fillRect(0, 0, 64, 64);
+
+  for (let i = 0; i < 220; i++) {
+    const x = (i * 17) % 64;
+    const y = (i * 29) % 64;
+    const shade = i % 3;
+    tctx.fillStyle = shade === 0 ? '#4f9446' : shade === 1 ? '#356f31' : '#5aa050';
+    tctx.fillRect(x, y, 2, 2);
+  }
+
+  return ctx.createPattern(tex, 'repeat');
+}
+
+function createGravelPattern() {
+  const tex = document.createElement('canvas');
+  tex.width = 64;
+  tex.height = 64;
+  const tctx = tex.getContext('2d');
+
+  tctx.fillStyle = '#8a8a7a';
+  tctx.fillRect(0, 0, 64, 64);
+
+  for (let i = 0; i < 180; i++) {
+    const x = (i * 13 + (i % 7) * 3) % 64;
+    const y = (i * 19 + (i % 5) * 5) % 64;
+    const size = (i % 3) + 1;
+    const shade = i % 4;
+    tctx.fillStyle = shade < 2 ? '#9b9b8a' : '#6f6f64';
+    tctx.fillRect(x, y, size, size);
+  }
+
+  return ctx.createPattern(tex, 'repeat');
+}
+
+function ensureTerrainPatterns() {
+  if (!grassPattern) grassPattern = createGrassPattern();
+  if (!gravelPattern) gravelPattern = createGravelPattern();
 }
 
 function buildWidePathCells(centerPath, halfWidth) {
@@ -855,11 +903,13 @@ function drawRangeOverlay(centerX, centerY, rangeTiles, color) {
 }
 
 function drawGrid() {
-  ctx.fillStyle = '#f3f4f6';
+  ensureTerrainPatterns();
+
+  ctx.fillStyle = grassPattern || '#3f7f3a';
   ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
 
-  ctx.strokeStyle = '#4b5563';
-  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE;
+  ctx.strokeStyle = '#5d4938';
+  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE + 6;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -871,11 +921,36 @@ function drawGrid() {
     else ctx.lineTo(cx, cy);
   }
   ctx.stroke();
+
+  ctx.strokeStyle = gravelPattern || '#8a8a7a';
+  ctx.lineWidth = (PATH_HALF_WIDTH_TILES * 2 + 1) * TILE_SIZE;
+  ctx.beginPath();
+  for (let i = 0; i < path.length; i++) {
+    const [px, py] = path[i];
+    const cx = px * TILE_SIZE + TILE_SIZE / 2;
+    const cy = py * TILE_SIZE + TILE_SIZE / 2;
+    if (i === 0) ctx.moveTo(cx, cy);
+    else ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = '#6a6a5e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < path.length; i++) {
+    const [px, py] = path[i];
+    const cx = px * TILE_SIZE + TILE_SIZE / 2;
+    const cy = py * TILE_SIZE + TILE_SIZE / 2;
+    if (i === 0) ctx.moveTo(cx, cy);
+    else ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+
   ctx.lineWidth = 1;
 
   for (let x = 0; x < GRID_WIDTH; x++) {
     for (let y = 0; y < GRID_HEIGHT; y++) {
-      ctx.strokeStyle = '#d1d5db';
+      ctx.strokeStyle = 'rgba(17, 24, 39, 0.18)';
       ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
   }
