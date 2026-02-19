@@ -184,6 +184,65 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
+### 🌐 Play in Browser (Web Version)
+
+If you want a browser-playable version (no Pygame window required), run:
+
+```bash
+cd web
+python3 -m http.server 8000
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
+
+The web version includes the same core loop: tower placement, waves, gold, lives, and victory/defeat states.
+
+### ☁️ One-Click Hosted Web Play (No Local Updates Needed)
+
+If you want a permanent click-to-play link (so you don't have to run anything locally), use GitHub Pages.
+
+This repo now includes an auto-deploy workflow at [.github/workflows/deploy-web-pages.yml](.github/workflows/deploy-web-pages.yml) that publishes the `web/` folder whenever `main` changes in `web/**`.
+
+#### One-time setup
+
+1. In GitHub, open your repository settings.
+2. Go to **Pages**.
+3. Set **Source** to **GitHub Actions**.
+
+#### Your one-click game URL
+
+After the first successful workflow run, open:
+
+```text
+https://octos2468-lab.github.io/war-conquest-game/
+```
+
+From then on, updates to files in `web/` deploy automatically. You can just click the same URL to play the latest version.
+
+### 🪟 One-Click EXE (Windows)
+
+If you want to test by double-clicking an `.exe` file:
+
+1. Open PowerShell in the repo root.
+2. Run:
+
+```powershell
+./build_web_exe.bat
+```
+
+3. After build completes, open:
+
+```text
+dist\WarConquestWeb.exe
+```
+
+Double-click `WarConquestWeb.exe` to launch the game in your browser.
+Keep the EXE window open while playing (it runs the local game server).
+
 **Features:**
 - 20x20 grid-based map with winding path
 - 3 tower types (Basic, Rapid, Heavy)

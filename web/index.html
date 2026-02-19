@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>War Conquest - Web Tower Defense</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="game-wrap">
+      <canvas id="gameCanvas" width="600" height="600"></canvas>
+    </section>
+
+    <aside class="panel">
+      <h1>War Conquest</h1>
+      <p class="subtitle">Web Edition</p>
+
+      <div class="stats">
+        <div><span>Gold:</span> <strong id="gold">200</strong></div>
+        <div><span>Lives:</span> <strong id="lives">20</strong></div>
+        <div><span>Wave:</span> <strong id="wave">0/10</strong></div>
+      </div>
+
+      <h2>Towers</h2>
+      <div class="tower-buttons">
+        <button class="tower-btn" data-type="basic">Basic (100)</button>
+        <button class="tower-btn" data-type="rapid">Rapid (150)</button>
+        <button class="tower-btn" data-type="heavy">Heavy (250)</button>
+      </div>
+
+      <button id="startWaveBtn" class="start-btn">Start Wave</button>
+      <button id="restartBtn" class="restart-btn">Restart</button>
+
+      <p id="message" class="message">Select a tower, click the grid, then start a wave.</p>
+
+      <ul class="tips">
+        <li>Do not build on the dark path.</li>
+        <li>Enemies reaching the end remove 1 life.</li>
+        <li>Defeat all 10 waves to win.</li>
+      </ul>
+    </aside>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
