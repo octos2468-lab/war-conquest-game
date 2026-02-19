@@ -61,6 +61,8 @@ const heroAnchor = path[Math.floor(path.length / 2)];
 let state;
 let previousTime = performance.now();
 let hoverGrid = null;
+let renderScaleX = 1;
+let renderScaleY = 1;
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -69,8 +71,13 @@ function resizeCanvasDisplayToViewport() {
   const width = Math.max(320, Math.floor(wrapper.clientWidth));
   const height = Math.max(320, Math.floor(wrapper.clientHeight));
 
+  canvas.width = width;
+  canvas.height = height;
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
+
+  renderScaleX = width / BOARD_PX;
+  renderScaleY = height / BOARD_PX;
 }
 
 function createPath() {
@@ -1019,6 +1026,10 @@ function drawOverlayText() {
 }
 
 function draw(now) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.setTransform(renderScaleX, 0, 0, renderScaleY, 0, 0);
+
   drawGrid();
   drawRangeSelection();
   drawHoverPreview();
