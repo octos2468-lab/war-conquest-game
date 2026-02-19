@@ -69,6 +69,7 @@ let renderOffsetX = 0;
 let renderOffsetY = 0;
 let grassPattern = null;
 let gravelPattern = null;
+let unitSprites = null;
 
 function resizeCanvasDisplayToViewport() {
   const wrapper = canvas.parentElement;
@@ -146,6 +147,156 @@ function ensureTerrainPatterns() {
   if (!gravelPattern) gravelPattern = createGravelPattern();
 }
 
+function createUnitSprite(drawFn) {
+  const tex = document.createElement('canvas');
+  tex.width = 48;
+  tex.height = 48;
+  const tctx = tex.getContext('2d');
+  drawFn(tctx);
+  return tex;
+}
+
+function createUnitSprites() {
+  const hero = createUnitSprite((g) => {
+    g.fillStyle = '#2f2f36';
+    g.beginPath();
+    g.arc(24, 24, 11, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#a59d79';
+    g.fillRect(15, 13, 18, 14);
+    g.fillStyle = '#d6c17a';
+    g.fillRect(20, 8, 8, 8);
+    g.fillStyle = '#6d0f17';
+    g.fillRect(11, 26, 26, 14);
+    g.strokeStyle = '#111827';
+    g.lineWidth = 2;
+    g.strokeRect(11, 26, 26, 14);
+  });
+
+  const soldier = createUnitSprite((g) => {
+    g.fillStyle = '#293041';
+    g.beginPath();
+    g.arc(24, 24, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#9fb4c9';
+    g.fillRect(18, 10, 12, 10);
+    g.fillStyle = '#50617a';
+    g.fillRect(14, 22, 20, 14);
+    g.strokeStyle = '#111827';
+    g.lineWidth = 2;
+    g.strokeRect(14, 22, 20, 14);
+    g.fillStyle = '#7a5a36';
+    g.fillRect(30, 19, 4, 15);
+  });
+
+  const militia = createUnitSprite((g) => {
+    g.fillStyle = '#3a1f1d';
+    g.beginPath();
+    g.arc(24, 24, 9, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8f5f3a';
+    g.fillRect(18, 11, 12, 10);
+    g.fillStyle = '#7d1d1d';
+    g.fillRect(14, 22, 20, 14);
+    g.strokeStyle = '#111827';
+    g.strokeRect(14, 22, 20, 14);
+  });
+
+  const raider = createUnitSprite((g) => {
+    g.fillStyle = '#2b1d12';
+    g.beginPath();
+    g.arc(24, 24, 10, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#c98441';
+    g.fillRect(17, 10, 14, 11);
+    g.fillStyle = '#8a2a12';
+    g.fillRect(13, 22, 22, 15);
+    g.strokeStyle = '#111827';
+    g.lineWidth = 2;
+    g.strokeRect(13, 22, 22, 15);
+    g.fillStyle = '#7c7c6b';
+    g.fillRect(31, 18, 4, 16);
+  });
+
+  const brute = createUnitSprite((g) => {
+    g.fillStyle = '#2d1f3f';
+    g.beginPath();
+    g.arc(24, 24, 12, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#7b63a5';
+    g.fillRect(16, 9, 16, 12);
+    g.fillStyle = '#4f2a7a';
+    g.fillRect(11, 21, 26, 17);
+    g.strokeStyle = '#111827';
+    g.lineWidth = 2;
+    g.strokeRect(11, 21, 26, 17);
+  });
+
+  return { hero, soldier, militia, raider, brute };
+}
+
+function ensureUnitSprites() {
+  if (!unitSprites) unitSprites = createUnitSprites();
+}
+
+function drawFacingSprite(sprite, x, y, radius, facingX, facingY) {
+  ensureUnitSprites();
+  const angle = Math.atan2(facingY, facingX);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle + Math.PI / 2);
+  const size = radius * 2.35;
+  ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+
+function drawUnitHealthBar(x, y, radius, health, maxHealth) {
+  const barW = Math.max(16, radius * 2);
+  const bx = x - barW / 2;
+  const by = y - radius - 10;
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(bx, by, barW, 4);
+  const hpW = Math.max(0, (health / maxHealth) * barW);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(bx, by, hpW, 4);
+}
+
+function resolveOverlapPair(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  const minDist = (a.radius || 0) + (b.radius || 0) + 0.5;
+  if (dist <= 0 || dist >= minDist) return;
+
+  const push = (minDist - dist) / 2;
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  a.x -= nx * push;
+  a.y -= ny * push;
+  b.x += nx * push;
+  b.y += ny * push;
+}
+
+function resolveUnitOverlaps() {
+  const entities = [];
+  if (state.hero.alive) entities.push(state.hero);
+  for (const unit of state.soldiers) {
+    if (unit.alive) entities.push(unit);
+  }
+  for (const enemy of state.enemies) {
+    if (enemy.alive && !enemy.reachedEnd && enemy.spawnDelay <= 0) entities.push(enemy);
+  }
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < entities.length; i++) {
+      for (let j = i + 1; j < entities.length; j++) {
+        resolveOverlapPair(entities[i], entities[j]);
+      }
+    }
+  }
+}
+
 function buildWidePathCells(centerPath, halfWidth) {
   const cells = new Set();
 
@@ -171,6 +322,7 @@ function createHero() {
     anchorY,
     x: anchorX,
     y: anchorY,
+    radius: 10,
     maxHealth: 250,
     health: 250,
     alive: true,
@@ -776,6 +928,7 @@ function updateSoldierBarracks(dt, now) {
       state.soldiers.push({
         x: center.x,
         y: center.y,
+        radius: 8,
         homeX: center.x,
         homeY: center.y,
         ownerPost: post,
@@ -900,6 +1053,7 @@ function update(dt, now) {
   updateEnemies(dt);
   updateArcherPosts(dt, now);
   updateSoldierBarracks(dt, now);
+  resolveUnitOverlaps();
   updateProjectiles(dt);
   checkWaveCompletion();
   updateUI();
@@ -970,29 +1124,8 @@ function drawHero() {
   const hero = state.hero;
   if (!hero.alive) return;
 
-  ctx.fillStyle = '#facc15';
-  ctx.beginPath();
-  ctx.arc(hero.x, hero.y, 10, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#111827';
-  ctx.stroke();
-
-  const faceTipX = hero.x + hero.facingX * 10;
-  const faceTipY = hero.y + hero.facingY * 10;
-  ctx.beginPath();
-  ctx.moveTo(hero.x, hero.y);
-  ctx.lineTo(faceTipX, faceTipY);
-  ctx.stroke();
-
-  const barW = 22;
-  const bx = hero.x - barW / 2;
-  const by = hero.y - 18;
-  ctx.fillStyle = '#111827';
-  ctx.fillRect(bx, by, barW, 4);
-  const hpW = Math.max(0, (hero.health / hero.maxHealth) * barW);
-  ctx.fillStyle = '#22c55e';
-  ctx.fillRect(bx, by, hpW, 4);
+  drawFacingSprite(unitSprites.hero, hero.x, hero.y, hero.radius, hero.facingX, hero.facingY);
+  drawUnitHealthBar(hero.x, hero.y, hero.radius, hero.health, hero.maxHealth);
 
   if (hero.attackAnimTime > 0) {
     const tipX = hero.x + hero.facingX * 18;
@@ -1039,29 +1172,8 @@ function drawSoldiers() {
   for (const unit of state.soldiers) {
     if (!unit.alive) continue;
 
-    ctx.fillStyle = '#06b6d4';
-    ctx.beginPath();
-    ctx.arc(unit.x, unit.y, 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#111827';
-    ctx.stroke();
-
-    const faceTipX = unit.x + unit.facingX * 8;
-    const faceTipY = unit.y + unit.facingY * 8;
-    ctx.beginPath();
-    ctx.moveTo(unit.x, unit.y);
-    ctx.lineTo(faceTipX, faceTipY);
-    ctx.stroke();
-
-    const barW = 16;
-    const bx = unit.x - barW / 2;
-    const by = unit.y - 16;
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(bx, by, barW, 3);
-    const hpW = Math.max(0, (unit.health / unit.maxHealth) * barW);
-    ctx.fillStyle = '#22c55e';
-    ctx.fillRect(bx, by, hpW, 3);
+    drawFacingSprite(unitSprites.soldier, unit.x, unit.y, unit.radius, unit.facingX, unit.facingY);
+    drawUnitHealthBar(unit.x, unit.y, unit.radius, unit.health, unit.maxHealth);
 
     if (unit.attackAnimTime > 0) {
       const tipX = unit.x + unit.facingX * 14;
@@ -1081,33 +1193,14 @@ function drawEnemies() {
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
 
-    const archetype = enemyStats[enemy.type];
+    const sprite = enemy.type === 'militia'
+      ? unitSprites.militia
+      : enemy.type === 'raider'
+        ? unitSprites.raider
+        : unitSprites.brute;
 
-    ctx.fillStyle = archetype.color;
-    ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#111827';
-    ctx.stroke();
-
-    const faceTipX = enemy.x + enemy.facingX * (enemy.radius - 2);
-    const faceTipY = enemy.y + enemy.facingY * (enemy.radius - 2);
-    ctx.beginPath();
-    ctx.moveTo(enemy.x, enemy.y);
-    ctx.lineTo(faceTipX, faceTipY);
-    ctx.stroke();
-
-    const barW = Math.max(24, enemy.radius * 2);
-    const bx = enemy.x - barW / 2;
-    const by = enemy.y - enemy.radius - 10;
-
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(bx, by, barW, 4);
-
-    const hpW = Math.max(0, (enemy.health / enemy.maxHealth) * barW);
-    ctx.fillStyle = '#22c55e';
-    ctx.fillRect(bx, by, hpW, 4);
+    drawFacingSprite(sprite, enemy.x, enemy.y, enemy.radius, enemy.facingX, enemy.facingY);
+    drawUnitHealthBar(enemy.x, enemy.y, enemy.radius, enemy.health, enemy.maxHealth);
   }
 }
 
