@@ -157,80 +157,237 @@ function createUnitSprite(drawFn) {
 }
 
 function createUnitSprites() {
-  const hero = createUnitSprite((g) => {
-    g.fillStyle = '#2f2f36';
-    g.beginPath();
-    g.arc(24, 24, 11, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#a59d79';
-    g.fillRect(15, 13, 18, 14);
-    g.fillStyle = '#d6c17a';
-    g.fillRect(20, 8, 8, 8);
-    g.fillStyle = '#6d0f17';
-    g.fillRect(11, 26, 26, 14);
-    g.strokeStyle = '#111827';
-    g.lineWidth = 2;
-    g.strokeRect(11, 26, 26, 14);
-  });
+  const drawKnight = (g, cfg) => {
+    g.clearRect(0, 0, 48, 48);
 
-  const soldier = createUnitSprite((g) => {
-    g.fillStyle = '#293041';
+    g.globalAlpha = 0.35;
+    g.fillStyle = '#05070b';
     g.beginPath();
-    g.arc(24, 24, 9, 0, Math.PI * 2);
+    g.ellipse(24, 39, 12, 5, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#9fb4c9';
-    g.fillRect(18, 10, 12, 10);
-    g.fillStyle = '#50617a';
-    g.fillRect(14, 22, 20, 14);
-    g.strokeStyle = '#111827';
-    g.lineWidth = 2;
-    g.strokeRect(14, 22, 20, 14);
-    g.fillStyle = '#7a5a36';
-    g.fillRect(30, 19, 4, 15);
-  });
+    g.globalAlpha = 1;
 
-  const militia = createUnitSprite((g) => {
-    g.fillStyle = '#3a1f1d';
+    g.fillStyle = cfg.cape;
     g.beginPath();
-    g.arc(24, 24, 9, 0, Math.PI * 2);
+    g.moveTo(24, 17);
+    g.lineTo(13, 31);
+    g.lineTo(18, 37);
+    g.lineTo(24, 33);
+    g.lineTo(30, 37);
+    g.lineTo(35, 31);
+    g.closePath();
     g.fill();
-    g.fillStyle = '#8f5f3a';
-    g.fillRect(18, 11, 12, 10);
-    g.fillStyle = '#7d1d1d';
-    g.fillRect(14, 22, 20, 14);
-    g.strokeStyle = '#111827';
-    g.strokeRect(14, 22, 20, 14);
-  });
 
-  const raider = createUnitSprite((g) => {
-    g.fillStyle = '#2b1d12';
-    g.beginPath();
-    g.arc(24, 24, 10, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#c98441';
-    g.fillRect(17, 10, 14, 11);
-    g.fillStyle = '#8a2a12';
-    g.fillRect(13, 22, 22, 15);
-    g.strokeStyle = '#111827';
-    g.lineWidth = 2;
-    g.strokeRect(13, 22, 22, 15);
-    g.fillStyle = '#7c7c6b';
-    g.fillRect(31, 18, 4, 16);
-  });
+    g.fillStyle = cfg.boots;
+    g.fillRect(17, 33, 6, 8);
+    g.fillRect(25, 33, 6, 8);
+    g.fillStyle = '#0f141d';
+    g.fillRect(16, 39, 8, 2);
+    g.fillRect(24, 39, 8, 2);
 
-  const brute = createUnitSprite((g) => {
-    g.fillStyle = '#2d1f3f';
+    const torsoGrad = g.createLinearGradient(14, 16, 34, 34);
+    torsoGrad.addColorStop(0, cfg.steelHi);
+    torsoGrad.addColorStop(0.52, cfg.steelMid);
+    torsoGrad.addColorStop(1, cfg.steelLow);
+    g.fillStyle = torsoGrad;
     g.beginPath();
-    g.arc(24, 24, 12, 0, Math.PI * 2);
+    g.moveTo(24, 15);
+    g.lineTo(14, 22);
+    g.lineTo(16, 33);
+    g.lineTo(24, 36);
+    g.lineTo(32, 33);
+    g.lineTo(34, 22);
+    g.closePath();
     g.fill();
-    g.fillStyle = '#7b63a5';
-    g.fillRect(16, 9, 16, 12);
-    g.fillStyle = '#4f2a7a';
-    g.fillRect(11, 21, 26, 17);
-    g.strokeStyle = '#111827';
-    g.lineWidth = 2;
-    g.strokeRect(11, 21, 26, 17);
-  });
+
+    g.fillStyle = cfg.steelDark;
+    g.beginPath();
+    g.arc(16, 23, 4, 0, Math.PI * 2);
+    g.arc(32, 23, 4, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = cfg.chain;
+    g.fillRect(20, 27, 8, 9);
+    g.globalAlpha = 0.35;
+    g.fillStyle = '#d7dde5';
+    for (let y = 28; y <= 34; y += 2) {
+      g.fillRect(20, y, 8, 1);
+    }
+    g.globalAlpha = 1;
+
+    g.fillStyle = cfg.helm;
+    g.beginPath();
+    g.moveTo(24, 7);
+    g.lineTo(17, 11);
+    g.lineTo(17, 19);
+    g.lineTo(24, 22);
+    g.lineTo(31, 19);
+    g.lineTo(31, 11);
+    g.closePath();
+    g.fill();
+
+    g.fillStyle = '#0a0e14';
+    g.fillRect(20, 13, 8, 2);
+    g.fillStyle = cfg.visorGlow;
+    g.fillRect(21, 13, 2, 1);
+    g.fillRect(25, 13, 2, 1);
+
+    if (cfg.plume) {
+      g.fillStyle = cfg.plume;
+      g.beginPath();
+      g.moveTo(24, 5);
+      g.quadraticCurveTo(28, 8, 29, 13);
+      g.lineTo(24, 11);
+      g.lineTo(19, 13);
+      g.quadraticCurveTo(20, 8, 24, 5);
+      g.closePath();
+      g.fill();
+    }
+
+    if (cfg.shield) {
+      g.fillStyle = cfg.shield;
+      g.beginPath();
+      g.moveTo(11, 19);
+      g.lineTo(7, 23);
+      g.lineTo(8, 33);
+      g.lineTo(13, 38);
+      g.lineTo(17, 33);
+      g.lineTo(16, 23);
+      g.closePath();
+      g.fill();
+      g.strokeStyle = cfg.shieldTrim;
+      g.lineWidth = 1.6;
+      g.stroke();
+    }
+
+    if (cfg.weapon === 'sword') {
+      g.fillStyle = '#e3e7ed';
+      g.fillRect(33, 16, 2, 13);
+      g.fillStyle = '#6a4a2b';
+      g.fillRect(33, 29, 2, 6);
+      g.fillStyle = '#2a3442';
+      g.fillRect(31, 28, 6, 2);
+    } else {
+      g.fillStyle = '#5f4024';
+      g.fillRect(33, 18, 2, 16);
+      g.fillStyle = '#a2a9b5';
+      g.beginPath();
+      g.moveTo(32, 16);
+      g.lineTo(38, 18);
+      g.lineTo(36, 24);
+      g.lineTo(31, 22);
+      g.closePath();
+      g.fill();
+    }
+
+    g.strokeStyle = '#0b1018';
+    g.lineWidth = 1.2;
+    g.strokeRect(17, 33, 6, 8);
+    g.strokeRect(25, 33, 6, 8);
+    g.beginPath();
+    g.moveTo(24, 16);
+    g.lineTo(24, 35);
+    g.moveTo(14, 23);
+    g.lineTo(34, 23);
+    g.stroke();
+
+    g.globalAlpha = 0.2;
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.ellipse(21, 18, 7, 3, -0.6, 0, Math.PI * 2);
+    g.fill();
+    g.globalAlpha = 1;
+  };
+
+  const hero = createUnitSprite((g) =>
+    drawKnight(g, {
+      steelHi: '#d9dee6',
+      steelMid: '#8791a1',
+      steelLow: '#303a49',
+      steelDark: '#232a37',
+      helm: '#b7beca',
+      chain: '#566173',
+      cape: '#4b0d13',
+      boots: '#1f232d',
+      visorGlow: '#dfe6ef',
+      plume: '#7d1017',
+      shield: '#2f3340',
+      shieldTrim: '#b6c1cf',
+      weapon: 'sword'
+    })
+  );
+
+  const soldier = createUnitSprite((g) =>
+    drawKnight(g, {
+      steelHi: '#cad3de',
+      steelMid: '#76879c',
+      steelLow: '#2c3646',
+      steelDark: '#1d2737',
+      helm: '#9eaabc',
+      chain: '#49586b',
+      cape: '#18212d',
+      boots: '#1a1f2a',
+      visorGlow: '#c8d3df',
+      plume: null,
+      shield: '#2d3545',
+      shieldTrim: '#9fb0c5',
+      weapon: 'sword'
+    })
+  );
+
+  const militia = createUnitSprite((g) =>
+    drawKnight(g, {
+      steelHi: '#b3afa4',
+      steelMid: '#726b5f',
+      steelLow: '#312f2a',
+      steelDark: '#26231f',
+      helm: '#84786a',
+      chain: '#4c4339',
+      cape: '#33211a',
+      boots: '#231c17',
+      visorGlow: '#cdbda8',
+      plume: null,
+      shield: '#4a3527',
+      shieldTrim: '#a08b74',
+      weapon: 'axe'
+    })
+  );
+
+  const raider = createUnitSprite((g) =>
+    drawKnight(g, {
+      steelHi: '#b59582',
+      steelMid: '#7f5f4f',
+      steelLow: '#3b2a25',
+      steelDark: '#2f221d',
+      helm: '#8f6d5d',
+      chain: '#5e463b',
+      cape: '#3d1411',
+      boots: '#281a17',
+      visorGlow: '#d7b2a1',
+      plume: '#5c1713',
+      shield: '#4f2319',
+      shieldTrim: '#b68a75',
+      weapon: 'axe'
+    })
+  );
+
+  const brute = createUnitSprite((g) =>
+    drawKnight(g, {
+      steelHi: '#b7b1c7',
+      steelMid: '#70688c',
+      steelLow: '#30293f',
+      steelDark: '#221d2f',
+      helm: '#8d82a8',
+      chain: '#564f6f',
+      cape: '#231c38',
+      boots: '#181423',
+      visorGlow: '#cbc2e6',
+      plume: null,
+      shield: '#372f4e',
+      shieldTrim: '#aea0d6',
+      weapon: 'axe'
+    })
+  );
 
   return { hero, soldier, militia, raider, brute };
 }
