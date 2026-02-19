@@ -19,14 +19,21 @@
       <div class="stats">
         <div><span>Gold:</span> <strong id="gold">200</strong></div>
         <div><span>Lives:</span> <strong id="lives">20</strong></div>
+        <div><span>Army XP:</span> <strong id="armyXp">0</strong></div>
         <div><span>Wave:</span> <strong id="wave">0/10</strong></div>
       </div>
 
-      <h2>Towers</h2>
+      <h2>Army Posts</h2>
       <div class="tower-buttons">
-        <button class="tower-btn" data-type="basic">Basic (100)</button>
-        <button class="tower-btn" data-type="rapid">Rapid (150)</button>
-        <button class="tower-btn" data-type="heavy">Heavy (250)</button>
+        <button class="tower-btn" data-type="archer">Archer Post (110)</button>
+        <button class="tower-btn" data-type="soldier">Soldier Barracks (140)</button>
+      </div>
+
+      <h2>Hero</h2>
+      <div class="stats">
+        <div><span>Slash:</span> <strong id="slashCd">Ready</strong></div>
+        <div><span>Rally:</span> <strong id="rallyCd">Ready</strong></div>
+        <div><span>Escape:</span> <strong id="escapeCd">Ready</strong></div>
       </div>
 
       <button id="startWaveBtn" class="start-btn">Start Wave</button>
@@ -35,9 +42,9 @@
       <p id="message" class="message">Select a tower, click the grid, then start a wave.</p>
 
       <ul class="tips">
-        <li>Do not build on the dark path.</li>
+        <li>Deploy Army Posts off the dark path.</li>
         <li>Enemies reaching the end remove 1 life.</li>
-        <li>Defeat all 10 waves to win.</li>
+        <li>Hero auto-casts Slash, Rally, and Escape.</li>
       </ul>
     </aside>
   </main>

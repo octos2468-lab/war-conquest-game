@@ -3,7 +3,11 @@ const ctx = canvas.getContext('2d');
 
 const goldEl = document.getElementById('gold');
 const livesEl = document.getElementById('lives');
+const armyXpEl = document.getElementById('armyXp');
 const waveEl = document.getElementById('wave');
+const slashCdEl = document.getElementById('slashCd');
+const rallyCdEl = document.getElementById('rallyCd');
+const escapeCdEl = document.getElementById('escapeCd');
 const messageEl = document.getElementById('message');
 const startWaveBtn = document.getElementById('startWaveBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -13,19 +17,42 @@ const TILE_SIZE = 30;
 const GRID_WIDTH = 20;
 const GRID_HEIGHT = 20;
 const BOARD_PX = GRID_WIDTH * TILE_SIZE;
-const STARTING_GOLD = 200;
+const STARTING_GOLD = 220;
 const STARTING_LIVES = 20;
-const GOLD_PER_KILL = 15;
 const MAX_WAVES = 10;
 
-const towerStats = {
-  basic: { name: 'Basic', cost: 100, damage: 15, fireRate: 1.0, rangeTiles: 3, color: '#8b4513', projectileColor: '#f59e0b' },
-  rapid: { name: 'Rapid', cost: 150, damage: 8, fireRate: 3.0, rangeTiles: 2, color: '#2563eb', projectileColor: '#facc15' },
-  heavy: { name: 'Heavy', cost: 250, damage: 50, fireRate: 0.5, rangeTiles: 4, color: '#7e22ce', projectileColor: '#ef4444' },
+const postStats = {
+  archer: {
+    name: 'Archer Post',
+    cost: 110,
+    damage: 14,
+    fireRate: 1.8,
+    rangeTiles: 4,
+    color: '#8b4513',
+    projectileColor: '#f59e0b',
+    projectileSpeed: 6,
+  },
+  soldier: {
+    name: 'Soldier Barracks',
+    cost: 140,
+    damage: 24,
+    fireRate: 1.0,
+    rangeTiles: 2,
+    color: '#2563eb',
+    projectileColor: '#06b6d4',
+    projectileSpeed: 4,
+  },
+};
+
+const enemyStats = {
+  militia: { name: 'Militia', healthMult: 0.9, speedMult: 1.25, reward: 12, color: '#dc2626', radius: 10 },
+  raider: { name: 'Raider', healthMult: 1.0, speedMult: 1.0, reward: 15, color: '#f97316', radius: 12 },
+  brute: { name: 'Brute', healthMult: 1.8, speedMult: 0.72, reward: 25, color: '#7e22ce', radius: 14 },
 };
 
 const path = createPath();
 const pathSet = new Set(path.map(([x, y]) => `${x},${y}`));
+const heroAnchor = path[Math.floor(path.length / 2)];
 
 let state;
 let previousTime = performance.now();
@@ -42,44 +69,88 @@ function createPath() {
   return result;
 }
 
+function createHero() {
+  return {
+    x: heroAnchor[0] * TILE_SIZE + TILE_SIZE / 2,
+    y: heroAnchor[1] * TILE_SIZE + TILE_SIZE / 2,
+    attackDamage: 18,
+    attackRange: TILE_SIZE * 3,
+    attackCooldown: 0.9,
+    attackTimer: 0,
+    slashDamage: 30,
+    slashRange: TILE_SIZE * 2,
+    slashCooldown: 3,
+    slashTimer: 0,
+    rallyCooldown: 10,
+    rallyDuration: 4.5,
+    rallyMultiplier: 1.35,
+    rallyTimer: 0,
+    rallyActiveUntil: 0,
+    escapeCooldown: 14,
+    escapeTimer: 0,
+    escapeCharges: 0,
+  };
+}
+
 function resetGame() {
   state = {
     phase: 'between',
     gold: STARTING_GOLD,
     lives: STARTING_LIVES,
+    armyXp: 0,
     wave: 0,
-    selectedTower: null,
-    towers: [],
+    selectedPost: null,
+    posts: [],
     enemies: [],
     projectiles: [],
+    hero: createHero(),
   };
 
   updateUI();
-  setMessage('Select a tower, place it on the grid, then start the wave.');
-  selectTower(null);
+  setMessage('Deploy Army Posts, then start the wave.');
+  selectPost(null);
 }
 
 function setMessage(text) {
   messageEl.textContent = text;
 }
 
+function formatCooldown(value) {
+  return value <= 0 ? 'Ready' : `${value.toFixed(1)}s`;
+}
+
 function updateUI() {
   goldEl.textContent = String(state.gold);
   livesEl.textContent = String(state.lives);
+  armyXpEl.textContent = String(state.armyXp);
   waveEl.textContent = `${state.wave}/${MAX_WAVES}`;
+
+  slashCdEl.textContent = formatCooldown(state.hero.slashTimer);
+  const rallyText = formatCooldown(state.hero.rallyTimer);
+  rallyCdEl.textContent = state.hero.rallyActiveUntil > 0 ? `${rallyText} (Active)` : rallyText;
+
+  const escapeText = formatCooldown(state.hero.escapeTimer);
+  escapeCdEl.textContent = state.hero.escapeCharges > 0 ? `${escapeText} (Ready)` : escapeText;
 }
 
-function selectTower(type) {
-  state.selectedTower = type;
+function selectPost(type) {
+  state.selectedPost = type;
   towerButtons.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.type === type);
   });
 }
 
-function canPlaceTower(gridX, gridY) {
+function canPlacePost(gridX, gridY) {
   if (gridX < 0 || gridX >= GRID_WIDTH || gridY < 0 || gridY >= GRID_HEIGHT) return false;
   if (pathSet.has(`${gridX},${gridY}`)) return false;
-  return !state.towers.some((tower) => tower.gridX === gridX && tower.gridY === gridY);
+  if (gridX === heroAnchor[0] && gridY === heroAnchor[1]) return false;
+  return !state.posts.some((post) => post.gridX === gridX && post.gridY === gridY);
+}
+
+function pickEnemyType(wave, index) {
+  if (wave <= 2) return index % 4 !== 0 ? 'militia' : 'raider';
+  if (wave <= 6) return index % 6 === 0 ? 'brute' : (index % 2 === 0 ? 'raider' : 'militia');
+  return index % 4 === 0 ? 'brute' : 'raider';
 }
 
 function spawnWave() {
@@ -88,8 +159,10 @@ function spawnWave() {
 
   state.wave += 1;
   const count = 5 + state.wave;
+
   for (let i = 0; i < count; i++) {
-    state.enemies.push(createEnemy(state.wave, i * 0.8));
+    const type = pickEnemyType(state.wave, i);
+    state.enemies.push(createEnemy(state.wave, type, i * 0.45));
   }
 
   state.phase = 'playing';
@@ -97,60 +170,67 @@ function spawnWave() {
   updateUI();
 }
 
-function createEnemy(wave, spawnDelaySeconds) {
+function createEnemy(wave, type, spawnDelaySeconds) {
+  const archetype = enemyStats[type];
+  const baseHealth = 45 + wave * 11;
+  const baseSpeed = 1.4 + wave * 0.1;
+
   return {
+    type,
     x: path[0][0] * TILE_SIZE + TILE_SIZE / 2,
     y: path[0][1] * TILE_SIZE + TILE_SIZE / 2,
     pathIndex: 0,
-    speed: 1.5 + wave * 0.1,
-    maxHealth: 50 + wave * 10,
-    health: 50 + wave * 10,
+    speed: baseSpeed * archetype.speedMult,
+    maxHealth: Math.round(baseHealth * archetype.healthMult),
+    health: Math.round(baseHealth * archetype.healthMult),
+    reward: archetype.reward,
+    radius: archetype.radius,
     alive: true,
     reachedEnd: false,
     spawnDelay: spawnDelaySeconds,
   };
 }
 
-function placeTower(gridX, gridY) {
+function placePost(gridX, gridY) {
   if (state.phase !== 'between' && state.phase !== 'playing') return;
-  if (!state.selectedTower) {
-    setMessage('Select a tower first.');
+  if (!state.selectedPost) {
+    setMessage('Select an Army Post first.');
     return;
   }
 
-  const stats = towerStats[state.selectedTower];
+  const stats = postStats[state.selectedPost];
   if (state.gold < stats.cost) {
-    setMessage('Not enough gold for that tower.');
+    setMessage('Not enough gold for that Army Post.');
     return;
   }
 
-  if (!canPlaceTower(gridX, gridY)) {
-    setMessage('You cannot place a tower there.');
+  if (!canPlacePost(gridX, gridY)) {
+    setMessage('You cannot deploy there.');
     return;
   }
 
   state.gold -= stats.cost;
-  state.towers.push({
+  state.posts.push({
     gridX,
     gridY,
-    type: state.selectedTower,
+    type: state.selectedPost,
     cooldown: 0,
   });
 
   updateUI();
-  setMessage(`${stats.name} tower placed.`);
+  setMessage(`${stats.name} deployed.`);
 }
 
-function getTowerCenter(tower) {
+function getPostCenter(post) {
   return {
-    x: tower.gridX * TILE_SIZE + TILE_SIZE / 2,
-    y: tower.gridY * TILE_SIZE + TILE_SIZE / 2,
+    x: post.gridX * TILE_SIZE + TILE_SIZE / 2,
+    y: post.gridY * TILE_SIZE + TILE_SIZE / 2,
   };
 }
 
-function findTargetForTower(tower) {
-  const stats = towerStats[tower.type];
-  const center = getTowerCenter(tower);
+function findTargetForPost(post) {
+  const stats = postStats[post.type];
+  const center = getPostCenter(post);
   const maxDist = stats.rangeTiles * TILE_SIZE;
 
   let closest = null;
@@ -168,6 +248,11 @@ function findTargetForTower(tower) {
   return closest;
 }
 
+function addKillRewards(enemy) {
+  state.gold += enemy.reward;
+  state.armyXp += 1;
+}
+
 function updateEnemies(dt) {
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd) continue;
@@ -179,10 +264,20 @@ function updateEnemies(dt) {
 
     if (enemy.pathIndex >= path.length) {
       enemy.reachedEnd = true;
-      state.lives -= 1;
-      if (state.lives <= 0) {
-        state.phase = 'gameover';
-        setMessage('Game Over. Press Restart to try again.');
+
+      if (state.hero.escapeCharges > 0) {
+        state.hero.escapeCharges -= 1;
+        enemy.reachedEnd = false;
+        enemy.pathIndex = Math.max(0, enemy.pathIndex - 8);
+        const [rx, ry] = path[Math.min(enemy.pathIndex, path.length - 1)];
+        enemy.x = rx * TILE_SIZE + TILE_SIZE / 2;
+        enemy.y = ry * TILE_SIZE + TILE_SIZE / 2;
+      } else {
+        state.lives -= 1;
+        if (state.lives <= 0) {
+          state.phase = 'gameover';
+          setMessage('Game Over. Press Restart to try again.');
+        }
       }
       continue;
     }
@@ -205,33 +300,125 @@ function updateEnemies(dt) {
   }
 }
 
-function updateTowers(dt) {
-  for (const tower of state.towers) {
-    const stats = towerStats[tower.type];
-    tower.cooldown -= dt;
+function heroBasicAttack() {
+  const hero = state.hero;
+  if (hero.attackTimer > 0) return;
 
-    if (tower.cooldown > 0) continue;
+  let target = null;
+  let bestDistance = Infinity;
 
-    const target = findTargetForTower(tower);
+  for (const enemy of state.enemies) {
+    if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
+    const dist = Math.hypot(enemy.x - hero.x, enemy.y - hero.y);
+    if (dist <= hero.attackRange && dist < bestDistance) {
+      bestDistance = dist;
+      target = enemy;
+    }
+  }
+
+  if (!target) return;
+
+  target.health -= hero.attackDamage;
+  if (target.health <= 0) {
+    target.alive = false;
+    addKillRewards(target);
+  }
+  hero.attackTimer = hero.attackCooldown;
+}
+
+function heroSlash() {
+  const hero = state.hero;
+  if (hero.slashTimer > 0) return;
+
+  const targets = state.enemies.filter((enemy) => {
+    if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) return false;
+    return Math.hypot(enemy.x - hero.x, enemy.y - hero.y) <= hero.slashRange;
+  });
+
+  if (targets.length < 2) return;
+
+  for (const enemy of targets) {
+    enemy.health -= hero.slashDamage;
+    if (enemy.health <= 0 && enemy.alive) {
+      enemy.alive = false;
+      addKillRewards(enemy);
+    }
+  }
+
+  hero.slashTimer = hero.slashCooldown;
+}
+
+function heroRally(now) {
+  const hero = state.hero;
+  if (hero.rallyTimer > 0) return;
+
+  const anyActiveEnemies = state.enemies.some((enemy) => enemy.alive && !enemy.reachedEnd && enemy.spawnDelay <= 0);
+  if (!anyActiveEnemies) return;
+
+  hero.rallyTimer = hero.rallyCooldown;
+  hero.rallyActiveUntil = now + hero.rallyDuration;
+}
+
+function heroEscape() {
+  const hero = state.hero;
+  if (hero.escapeTimer > 0) return;
+
+  const imminentLeak = state.enemies.some(
+    (enemy) => enemy.alive && !enemy.reachedEnd && enemy.spawnDelay <= 0 && enemy.pathIndex >= path.length - 4,
+  );
+
+  if (!imminentLeak) return;
+
+  hero.escapeTimer = hero.escapeCooldown;
+  hero.escapeCharges = 1;
+}
+
+function updateHero(dt, now) {
+  const hero = state.hero;
+  hero.attackTimer = Math.max(0, hero.attackTimer - dt);
+  hero.slashTimer = Math.max(0, hero.slashTimer - dt);
+  hero.rallyTimer = Math.max(0, hero.rallyTimer - dt);
+  hero.escapeTimer = Math.max(0, hero.escapeTimer - dt);
+
+  if (hero.rallyActiveUntil > 0 && now > hero.rallyActiveUntil) {
+    hero.rallyActiveUntil = 0;
+  }
+
+  heroSlash();
+  heroRally(now);
+  heroEscape();
+  heroBasicAttack();
+}
+
+function updatePosts(dt, now) {
+  const rallyActive = state.hero.rallyActiveUntil > now;
+  const multiplier = rallyActive ? state.hero.rallyMultiplier : 1;
+
+  for (const post of state.posts) {
+    const stats = postStats[post.type];
+    post.cooldown -= dt;
+
+    if (post.cooldown > 0) continue;
+
+    const target = findTargetForPost(post);
     if (!target) continue;
 
-    const center = getTowerCenter(tower);
+    const center = getPostCenter(post);
     const dx = target.x - center.x;
     const dy = target.y - center.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const speedPerFrame = 5;
 
     state.projectiles.push({
       x: center.x,
       y: center.y,
-      vx: (dx / dist) * speedPerFrame,
-      vy: (dy / dist) * speedPerFrame,
-      damage: stats.damage,
+      vx: (dx / dist) * stats.projectileSpeed,
+      vy: (dy / dist) * stats.projectileSpeed,
+      damage: Math.round(stats.damage * multiplier),
       color: stats.projectileColor,
       active: true,
     });
 
-    tower.cooldown = 1 / stats.fireRate;
+    post.cooldown = 1 / stats.fireRate;
   }
 }
 
@@ -250,12 +437,12 @@ function updateProjectiles(dt) {
     for (const enemy of state.enemies) {
       if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
       const dist = Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y);
-      if (dist < 15) {
+      if (dist < enemy.radius + 2) {
         enemy.health -= projectile.damage;
         projectile.active = false;
         if (enemy.health <= 0) {
           enemy.alive = false;
-          state.gold += GOLD_PER_KILL;
+          addKillRewards(enemy);
         }
         break;
       }
@@ -273,24 +460,27 @@ function checkWaveCompletion() {
 
   state.enemies = [];
   state.projectiles = [];
+  state.hero.escapeCharges = 0;
+  state.hero.rallyActiveUntil = 0;
 
   if (state.wave >= MAX_WAVES) {
     state.phase = 'victory';
-    setMessage('Victory! You defended all waves. Press Restart to play again.');
+    setMessage('Victory! Your army held all waves. Press Restart to play again.');
   } else {
     state.phase = 'between';
-    setMessage(`Wave ${state.wave} complete. Place towers, then start the next wave.`);
+    setMessage(`Wave ${state.wave} complete. Deploy posts, then start the next wave.`);
   }
 }
 
-function update(dt) {
+function update(dt, now) {
   if (state.phase !== 'playing') {
     updateUI();
     return;
   }
 
+  updateHero(dt, now);
   updateEnemies(dt);
-  updateTowers(dt);
+  updatePosts(dt, now);
   updateProjectiles(dt);
   checkWaveCompletion();
   updateUI();
@@ -313,16 +503,35 @@ function drawGrid() {
   }
 }
 
-function drawTowers() {
-  for (const tower of state.towers) {
-    const stats = towerStats[tower.type];
-    const x = tower.gridX * TILE_SIZE;
-    const y = tower.gridY * TILE_SIZE;
+function drawHero() {
+  ctx.fillStyle = '#facc15';
+  ctx.beginPath();
+  ctx.arc(state.hero.x, state.hero.y, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#111827';
+  ctx.stroke();
+}
+
+function drawPosts(now) {
+  const rallyActive = state.hero.rallyActiveUntil > now;
+
+  for (const post of state.posts) {
+    const stats = postStats[post.type];
+    const x = post.gridX * TILE_SIZE;
+    const y = post.gridY * TILE_SIZE;
 
     ctx.fillStyle = stats.color;
     ctx.fillRect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
     ctx.strokeStyle = '#111827';
     ctx.strokeRect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
+
+    if (rallyActive) {
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(x + TILE_SIZE / 2, y + TILE_SIZE / 2, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 }
 
@@ -330,18 +539,20 @@ function drawEnemies() {
   for (const enemy of state.enemies) {
     if (!enemy.alive || enemy.reachedEnd || enemy.spawnDelay > 0) continue;
 
-    ctx.fillStyle = '#dc2626';
+    const archetype = enemyStats[enemy.type];
+
+    ctx.fillStyle = archetype.color;
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, 12, 0, Math.PI * 2);
+    ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = '#111827';
     ctx.stroke();
 
-    const barW = 24;
+    const barW = Math.max(24, enemy.radius * 2);
     const barH = 4;
     const bx = enemy.x - barW / 2;
-    const by = enemy.y - 18;
+    const by = enemy.y - enemy.radius - 10;
 
     ctx.fillStyle = '#111827';
     ctx.fillRect(bx, by, barW, barH);
@@ -362,13 +573,13 @@ function drawProjectiles() {
 }
 
 function drawHoverPreview() {
-  if (!hoverGrid || !state.selectedTower) return;
+  if (!hoverGrid || !state.selectedPost) return;
 
   const { x, y } = hoverGrid;
   if (x < 0 || y < 0 || x >= GRID_WIDTH || y >= GRID_HEIGHT) return;
 
-  const stats = towerStats[state.selectedTower];
-  const valid = canPlaceTower(x, y) && state.gold >= stats.cost;
+  const stats = postStats[state.selectedPost];
+  const valid = canPlacePost(x, y) && state.gold >= stats.cost;
 
   ctx.fillStyle = valid ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)';
   ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -391,10 +602,11 @@ function drawOverlayText() {
   ctx.fillText('Press Restart to play again', BOARD_PX / 2, BOARD_PX / 2 + 36);
 }
 
-function draw() {
+function draw(now) {
   drawGrid();
   drawHoverPreview();
-  drawTowers();
+  drawHero();
+  drawPosts(now);
   drawEnemies();
   drawProjectiles();
   drawOverlayText();
@@ -404,8 +616,8 @@ function loop(now) {
   const dt = Math.min(0.05, (now - previousTime) / 1000);
   previousTime = now;
 
-  update(dt);
-  draw();
+  update(dt, now / 1000);
+  draw(now / 1000);
   requestAnimationFrame(loop);
 }
 
@@ -426,15 +638,15 @@ canvas.addEventListener('click', (event) => {
   const rect = canvas.getBoundingClientRect();
   const gridX = Math.floor((event.clientX - rect.left) / TILE_SIZE);
   const gridY = Math.floor((event.clientY - rect.top) / TILE_SIZE);
-  placeTower(gridX, gridY);
+  placePost(gridX, gridY);
 });
 
 towerButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     const selected = btn.dataset.type;
-    const stats = towerStats[selected];
-    selectTower(selected);
-    setMessage(`Selected ${stats.name} tower (${stats.cost} gold).`);
+    const stats = postStats[selected];
+    selectPost(selected);
+    setMessage(`Selected ${stats.name} (${stats.cost} gold).`);
   });
 });
 

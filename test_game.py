@@ -12,7 +12,7 @@ os.environ['SDL_VIDEODRIVER'] = 'dummy'
 os.environ['SDL_AUDIODRIVER'] = 'dummy'
 
 # Import game after setting environment
-sys.path.insert(0, '/home/runner/work/war-conquest-game/war-conquest-game/src')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from main import Game, TowerType, GameState, TOWER_TYPES
 
 def test_game_initialization():
@@ -20,10 +20,10 @@ def test_game_initialization():
     print("Testing game initialization...")
     game = Game()
     
-    assert game.gold == 200, "Starting gold should be 200"
+    assert game.gold == 220, "Starting gold should be 220"
     assert game.lives == 20, "Starting lives should be 20"
     assert game.wave_number == 0, "Starting wave should be 0"
-    assert len(game.towers) == 0, "Should start with no towers"
+    assert len(game.towers) == 0, "Should start with no army posts"
     assert len(game.enemies) == 0, "Should start with no enemies"
     assert game.state == GameState.BETWEEN_WAVES, "Should start in BETWEEN_WAVES state"
     
@@ -50,25 +50,25 @@ def test_tower_placement():
     game = Game()
     
     # Test valid placement (use position not on path)
-    assert game.can_place_tower(2, 2), "Should be able to place tower on empty tile"
+    assert game.can_place_tower(2, 2), "Should be able to place post on empty tile"
     
     # Test invalid placement on path
-    assert not game.can_place_tower(1, 0), "Should not be able to place tower on path"
+    assert not game.can_place_tower(1, 0), "Should not be able to place post on path"
     
-    # Test placing a tower
+    # Test placing an army post
     initial_gold = game.gold
-    tower_cost = TOWER_TYPES[TowerType.BASIC].cost
-    game.selected_tower_type = TowerType.BASIC
+    tower_cost = TOWER_TYPES[TowerType.ARCHER_POST].cost
+    game.selected_tower_type = TowerType.ARCHER_POST
     game.gold = 1000  # Set high gold for testing
     
     game.handle_click((2 * 30 + 15, 2 * 30 + 15))  # Click in grid position (2, 2)
     
-    assert len(game.towers) == 1, "Tower should be placed"
+    assert len(game.towers) == 1, "Army post should be placed"
     assert game.towers[0].grid_x == 2, "Tower X position correct"
     assert game.towers[0].grid_y == 2, "Tower Y position correct"
     
-    # Test that can't place tower in same spot
-    assert not game.can_place_tower(2, 2), "Should not be able to place tower on existing tower"
+    # Test that can't place post in same spot
+    assert not game.can_place_tower(2, 2), "Should not be able to place post on existing post"
     
     print("✓ Tower placement test passed")
     return True
@@ -97,8 +97,8 @@ def test_wave_spawning():
     return True
 
 def test_tower_types():
-    """Test all tower types are configured correctly"""
-    print("\nTesting tower types...")
+    """Test all army post types are configured correctly"""
+    print("\nTesting army post types...")
     
     for tower_type in TowerType:
         stats = TOWER_TYPES[tower_type]
@@ -125,22 +125,23 @@ def test_game_state_transitions():
     
     # Test game over (set enemy to end of path, let game update handle it)
     game.lives = 1
+    game.hero.last_escape_time = 10**9
     enemy = game.enemies[0]
     enemy.path_index = len(enemy.path) - 1  # One step before end
     enemy.x = enemy.path[-1][0] * 30 + 15  # Move to near end position
     enemy.y = enemy.path[-1][1] * 30 + 15
-    game.update_game()  # This should make enemy reach end and deduct life
+    game.update_game(1 / 60)  # This should make enemy reach end and deduct life
     
     # If still not game over, try once more
     if game.state != GameState.GAME_OVER:
-        game.update_game()
+        game.update_game(1 / 60)
     
     assert game.state == GameState.GAME_OVER, f"Should be GAME_OVER when lives reach 0, but state is {game.state}"
     
     # Test reset
     game.reset_game()
     assert game.state == GameState.BETWEEN_WAVES, "Should return to BETWEEN_WAVES after reset"
-    assert game.gold == 200, "Gold should reset"
+    assert game.gold == 220, "Gold should reset"
     assert game.lives == 20, "Lives should reset"
     assert game.wave_number == 0, "Wave number should reset"
     
@@ -163,7 +164,7 @@ def test_game_economy():
     assert not enemy.alive, "Enemy should be dead"
     
     # Update game to award gold
-    game.update_game()
+    game.update_game(1 / 60)
     
     # Note: Gold is awarded in update when projectile hits, so we won't test exact amount here
     # Just verify the system works
