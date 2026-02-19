@@ -62,6 +62,17 @@ let state;
 let previousTime = performance.now();
 let hoverGrid = null;
 
+function resizeCanvasDisplayToViewport() {
+  const wrapper = canvas.parentElement;
+  if (!wrapper) return;
+
+  const width = Math.max(320, Math.floor(wrapper.clientWidth));
+  const height = Math.max(320, Math.floor(wrapper.clientHeight));
+
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+}
+
 function createPath() {
   const result = [];
   for (let y = 0; y < 5; y++) result.push([1, y]);
@@ -1044,6 +1055,10 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+window.addEventListener('resize', () => {
+  resizeCanvasDisplayToViewport();
+});
+
 canvas.addEventListener('mousemove', (event) => {
   const pos = getBoardCoordinatesFromEvent(event);
   hoverGrid = { x: pos.gridX, y: pos.gridY };
@@ -1104,4 +1119,5 @@ window.addEventListener('keydown', (event) => {
 });
 
 resetGame();
+resizeCanvasDisplayToViewport();
 requestAnimationFrame(loop);
