@@ -11,6 +11,7 @@ const escapeCdEl = document.getElementById('escapeCd');
 const messageEl = document.getElementById('message');
 const startWaveBtn = document.getElementById('startWaveBtn');
 const restartBtn = document.getElementById('restartBtn');
+const debugBtn = document.getElementById('debugBtn');
 const towerButtons = [...document.querySelectorAll('.tower-btn')];
 
 const TILE_SIZE = 30;
@@ -140,6 +141,14 @@ function updateUI() {
 
   const escapeText = formatCooldown(state.hero.escapeTimer);
   escapeCdEl.textContent = state.hero.escapeCharges > 0 ? `${escapeText} (Ready)` : escapeText;
+
+  debugBtn.textContent = `Debug Gold: ${state.debugInfiniteGold ? 'ON' : 'OFF'}`;
+}
+
+function toggleDebugInfiniteGold() {
+  state.debugInfiniteGold = !state.debugInfiniteGold;
+  setMessage(`Debug infinite gold ${state.debugInfiniteGold ? 'enabled' : 'disabled'}.`);
+  updateUI();
 }
 
 function selectPost(type) {
@@ -873,14 +882,16 @@ restartBtn.addEventListener('click', () => {
   resetGame();
 });
 
+debugBtn.addEventListener('click', () => {
+  toggleDebugInfiniteGold();
+});
+
 window.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 'r') {
     resetGame();
   }
   if (event.key.toLowerCase() === 'd') {
-    state.debugInfiniteGold = !state.debugInfiniteGold;
-    setMessage(`Debug infinite gold ${state.debugInfiniteGold ? 'enabled' : 'disabled'}.`);
-    updateUI();
+    toggleDebugInfiniteGold();
   }
 });
 
